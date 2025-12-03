@@ -1,15 +1,16 @@
 :root {
-  --bg: #0a0d18;
+  --bg: #050814;
   --bg-accent-1: rgba(126, 58, 242, 0.08);
   --bg-accent-2: rgba(34, 197, 235, 0.08);
   --card: #0f1729;
-  --panel: #101829;
+  --panel: #0c1425;
   --text: #f8fafc;
   --muted: #cbd5e1;
   --helper: #94a3b8;
   --accent: #a855f7;
   --accent-strong: #22d3ee;
   --border: #1f2937;
+  --frost: rgba(255, 255, 255, 0.05);
   --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -26,19 +27,79 @@ body {
     linear-gradient(135deg, #080b16 0%, #0b1222 100%);
   color: var(--text);
   padding: 32px 24px 48px;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.orb {
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  filter: blur(120px);
+  opacity: 0.45;
+  z-index: 0;
+}
+
+.orb-one {
+  background: #8b5cf6;
+  top: -40px;
+  left: -40px;
+}
+
+.orb-two {
+  background: #22d3ee;
+  bottom: 0;
+  right: 0;
+}
+
+.gridlines {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 120px 120px;
+  mask-image: radial-gradient(circle at 30% 40%, rgba(0, 0, 0, 0.25), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.page-shell {
+  position: relative;
+  max-width: 1180px;
+  margin: 0 auto;
+  z-index: 1;
 }
 
 main {
-  max-width: 1080px;
+  max-width: 1180px;
   margin: 0 auto;
 }
 
 .app-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 18px;
   margin-bottom: 24px;
+}
+
+.hero {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.7)),
+    radial-gradient(circle at 10% 20%, rgba(168, 85, 247, 0.18), transparent 30%),
+    radial-gradient(circle at 90% 20%, rgba(34, 211, 238, 0.16), transparent 28%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hero-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .brand-mark {
@@ -76,22 +137,23 @@ h1 {
 .subtitle {
   margin: 0;
   color: var(--helper);
-  max-width: 520px;
+  max-width: 620px;
 }
 
 .card {
   background: var(--card);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 18px;
   padding: 20px;
   box-shadow: var(--shadow);
+  backdrop-filter: blur(6px);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 12px;
 }
 
@@ -106,6 +168,12 @@ h1 {
   color: var(--accent-strong);
   font-weight: 700;
   font-size: 0.9rem;
+}
+
+.pill-ghost {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
 }
 
 .panel-grid {
@@ -123,9 +191,13 @@ h1 {
 }
 
 .panel h3 {
-  margin: 0 0 12px;
+  margin: 0 0 4px;
   color: var(--text);
   letter-spacing: -0.2px;
+}
+
+.panel-header {
+  margin-bottom: 12px;
 }
 
 .form-group {
@@ -153,7 +225,7 @@ select {
   padding: 12px 12px;
   border-radius: 12px;
   font-size: 1rem;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
 }
 
 label input:focus,
@@ -162,6 +234,7 @@ select:focus {
   border-color: var(--accent);
   outline: none;
   box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.25);
+  transform: translateY(-1px);
 }
 
 textarea {
@@ -184,6 +257,7 @@ fieldset {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 legend {
@@ -199,10 +273,74 @@ legend {
   font-weight: 500;
 }
 
-.actions {
-  margin-top: 4px;
+.content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(260px, 0.9fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.side-panel {
+  position: sticky;
+  top: 24px;
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  gap: 12px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.checklist {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.checklist li {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.checklist p {
+  margin: 4px 0 0;
+  color: var(--helper);
+}
+
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.stat-value {
+  margin: 6px 0 0;
+  font-weight: 700;
+}
+
+.actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.microcopy {
+  max-width: 520px;
 }
 
 .primary {
@@ -401,11 +539,19 @@ button.option:focus {
   }
 
   .app-header {
+    grid-template-columns: 1fr;
+  }
+
+  .card-header {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .card-header {
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
     flex-direction: column;
     align-items: flex-start;
   }
