@@ -313,6 +313,7 @@ function applyLanguageRules(template, overrides = {}) {
     if (token in pronounTokens) return pronounTokens[token] || "";
 
     const grammarSet = hint === "name" ? grammarLexicon.singular : grammarTokens;
+    if (token === "are") return grammarSet.be;
     if (grammarSet[token] !== undefined) return grammarSet[token];
 
     return match;
@@ -401,7 +402,6 @@ function generateMappingTrials() {
     { type: "subject", text: "___ {be} running a little late." },
     { type: "subject", text: "___ {have} a really cool style." },
     { type: "subject", text: "___ always work{s} hard." },
-    { type: "subject", text: "I think ___ {be} next in line." },
     { type: "object", text: "I saw ___ at the store." },
     { type: "object", text: "Please give this to ___." },
     { type: "object", text: "We invited ___ to the party." },
@@ -409,7 +409,8 @@ function generateMappingTrials() {
     { type: "possAdj", text: "___ dog is very cute." },
     { type: "possAdj", text: "We should go to ___ house." },
     { type: "reflexive", text: "{name} bought it for ___ as a treat." },
-    { type: "reflexive", text: "{name} {be:name} proud of ___ after the ceremony." }
+    { type: "reflexive", text: "{name} {be:name} proud of ___ after the ceremony." },
+    { type: "subject", text: "I think ___ {are} next in line." }
   ];
 
   const grammar = appState.setup.verbGrammar || inferGrammarFromPronoun(pronouns.subject);
@@ -598,6 +599,8 @@ function recordResult(type, correct, startTime, meta = {}) {
 }
 
 function handleAnswer(correct, onAdvance, type, startTime, meta = {}) {
+  const lingering = trialContainer.querySelectorAll(".feedback-overlay");
+  lingering.forEach((node) => node.remove());
   flashFeedback(correct);
   if (correct) {
     recordResult(type, true, startTime, meta);
@@ -606,7 +609,7 @@ function handleAnswer(correct, onAdvance, type, startTime, meta = {}) {
   }
   recordResult(type, false, startTime, meta);
   const overlay = document.createElement("div");
-  overlay.className = "label";
+  overlay.className = "label feedback-overlay";
   overlay.textContent = "Incorrect — pause & review";
   trialContainer.appendChild(overlay);
   setTimeout(() => {
@@ -686,7 +689,10 @@ function renderDualTrial(trial) {
 
   const numberArea = document.createElement("div");
   numberArea.className = "number-stream";
-  numberArea.textContent = "Preparing...";
+  const numberValue = document.createElement("div");
+  numberValue.className = "number-value";
+  numberValue.textContent = "Preparing...";
+  numberArea.appendChild(numberValue);
   const numberControls = document.createElement("div");
   numberControls.className = "grid-two mobile-controls";
   const oddBtn = document.createElement("button");
@@ -723,7 +729,7 @@ function renderDualTrial(trial) {
   let pronounStart = Date.now();
   const handleNumber = (value) => {
     numberStart = Date.now();
-    numberArea.textContent = value;
+    numberValue.textContent = value;
   };
 
   const pronounTemplates = [
@@ -764,7 +770,7 @@ function renderDualTrial(trial) {
   };
 
   const handleNumberAnswer = (choice) => {
-    const value = Number(numberArea.textContent) || 0;
+    const value = Number(numberValue.textContent) || 0;
     const isEven = value % 2 === 0;
     const correct = (choice === "even" && isEven) || (choice === "odd" && !isEven);
     flashFeedback(correct);
@@ -821,34 +827,45 @@ function renderEditingTrial(trial) {
   continueBtn.disabled = true;
   continueBtn.style.marginTop = "12px";
 
-  let selectedValue = null;
-  let readyToAdvance = false;
+  const corrections = new Map();
+  let totalWrong = 0;
 
-  tokens.forEach((tok) => {
+  const updateReadyState = () => {
+    const ready = totalWrong > 0 && corrections.size === totalWrong && [...corrections.values()].every(Boolean);
+    continueBtn.disabled = !ready;
+    return ready;
+  };
+
+  tokens.forEach((tok, idx) => {
     const span = document.createElement("span");
     const cleaned = tok.replace(/[.,!?]/g, "");
     const isWrong = cleaned.toLowerCase() === trial.wrongWord.toLowerCase();
+    if (isWrong) totalWrong += 1;
     span.className = "token";
     span.textContent = cleaned;
     span.addEventListener("click", () => {
       if (!isWrong) return;
+      if (span.dataset.replaced === "true") return;
       const select = document.createElement("select");
       select.className = "dropdown";
+      select.setAttribute("aria-label", "Choose replacement pronoun");
       trial.options.forEach((o) => {
         const opt = document.createElement("option");
         opt.value = o;
         opt.textContent = o;
         select.appendChild(opt);
       });
+      select.value = trial.wrongWord;
       select.addEventListener("change", () => {
-        selectedValue = select.value;
-        readyToAdvance = select.value === trial.correct;
-        continueBtn.disabled = !readyToAdvance;
-        select.classList.toggle("incorrect", select.value !== trial.correct);
-        select.classList.toggle("correct", readyToAdvance);
-        if (readyToAdvance) continueBtn.focus();
+        const isCorrect = select.value === trial.correct;
+        corrections.set(idx, isCorrect);
+        select.classList.toggle("incorrect", !isCorrect);
+        select.classList.toggle("correct", isCorrect);
+        if (updateReadyState()) continueBtn.focus();
       });
       span.replaceWith(select);
+      corrections.set(idx, false);
+      span.dataset.replaced = "true";
       select.focus();
     });
     tokenWrap.appendChild(span);
@@ -858,9 +875,9 @@ function renderEditingTrial(trial) {
   trialContainer.appendChild(continueBtn);
 
   continueBtn.addEventListener("click", () => {
-    if (!readyToAdvance || !selectedValue) return;
-    const isCorrect = selectedValue === trial.correct;
-    handleAnswer(isCorrect, nextTrial, "editing", start);
+    const ready = updateReadyState();
+    if (!ready) return;
+    handleAnswer(true, nextTrial, "editing", start);
   });
 }
 
