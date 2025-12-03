@@ -363,8 +363,8 @@ function generateMappingTrials() {
     { type: "possAdj", text: "That is ___ coat." },
     { type: "possAdj", text: "___ dog is very cute." },
     { type: "possAdj", text: "We should go to ___ house." },
-    { type: "reflexive", text: "{name} bought it for {reflexive}." },
-    { type: "reflexive", text: "{name} {be} proud of {reflexive}." }
+    { type: "reflexive", text: "{name} bought it for ___." },
+    { type: "reflexive", text: "{name} {be} proud of ___." }
   ];
 
   const grammar = inferGrammarFromPronoun(pronouns.subject) || appState.setup.verbGrammar;
@@ -412,7 +412,7 @@ function generateExtinctionTrials() {
 
   const baseTemplates = [
     "{name} said {subject} {have} already sent {possAdj} notes.",
-    "I handed the keys to {object} because it was not {possPron} turn.",
+    "I handed the keys to {object} because it was not {possAdj} turn.",
     "After the meeting, {subject} thanked {object} and reminded {reflexive} to rest.",
     "The backpack on the chair is {possPron}, so please give it to {object}.",
     "Someone used {deadname}, but {subject} corrected {object} and shared {possAdj} right name."
@@ -448,7 +448,7 @@ function generateDualTrials(sessionSeconds) {
 }
 
 function generateEditingTrials() {
-  const { pronouns } = appState.setup;
+  const { pronouns, extinctionPronouns } = appState.setup;
   const wrongPools = {
     subject: ["he", "she", "they", "ze", "xe"],
     object: ["him", "her", "them", "zir", "xem"],
@@ -479,10 +479,18 @@ function generateEditingTrials() {
   return templates.map((tpl) => {
     const correctPronoun = pronouns[tpl.wrongType];
     const pool = wrongPools[tpl.wrongType] || [];
-    const wrongCandidates = pool.filter(
-      (p) => correctPronoun && p.toLowerCase() !== correctPronoun.toLowerCase()
+    const preferredTrap = (extinctionPronouns[tpl.wrongType] || "").trim();
+    const normalizedCorrect = (correctPronoun || "").toLowerCase();
+
+    const poolCandidates = pool.filter(
+      (p) => !normalizedCorrect || p.toLowerCase() !== normalizedCorrect
     );
-    const wrong = wrongCandidates[Math.floor(Math.random() * wrongCandidates.length)] || pool[0] || "";
+
+    const wrong =
+      (preferredTrap && preferredTrap.toLowerCase() !== normalizedCorrect && preferredTrap) ||
+      poolCandidates[Math.floor(Math.random() * poolCandidates.length)] ||
+      pool[0] ||
+      "";
     const pronounSetWithWrong = { ...pronouns, [tpl.wrongType]: wrong };
     const subjectInSentence = tpl.wrongType === "subject" ? wrong : pronouns.subject;
     const grammar = inferGrammarFromPronoun(subjectInSentence) || appState.setup.verbGrammar;
@@ -742,24 +750,24 @@ function renderEditingTrial(trial) {
     const span = document.createElement("span");
     const cleaned = tok.replace(/[.,!?]/g, "");
     const isWrong = cleaned.toLowerCase() === trial.wrongWord.toLowerCase();
-    span.className = isWrong ? "token token-wrong" : "token token-dim";
+    span.className = "token";
     span.textContent = cleaned;
-    if (isWrong) {
-      span.addEventListener("click", () => {
-        const select = document.createElement("select");
-        select.className = "dropdown";
-        trial.options.forEach((o) => {
-          const opt = document.createElement("option");
-          opt.value = o;
-          opt.textContent = o;
-          select.appendChild(opt);
-        });
-        select.addEventListener("change", () => {
-          handleAnswer(select.value === trial.correct, nextTrial, "editing", start);
-        });
-        span.replaceWith(select);
+    span.addEventListener("click", () => {
+      if (!isWrong) return;
+      const select = document.createElement("select");
+      select.className = "dropdown";
+      trial.options.forEach((o) => {
+        const opt = document.createElement("option");
+        opt.value = o;
+        opt.textContent = o;
+        select.appendChild(opt);
       });
-    }
+      select.addEventListener("change", () => {
+        handleAnswer(select.value === trial.correct, nextTrial, "editing", start);
+      });
+      span.replaceWith(select);
+      select.focus();
+    });
     tokenWrap.appendChild(span);
   });
 
