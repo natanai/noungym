@@ -235,26 +235,58 @@ function inferGrammarFromPronoun(pronoun) {
   return pluralSubjects.includes(p) ? "plural" : "singular";
 }
 
-function processTemplate(templateString, grammarOverride) {
-  const { targetName, deadname, verbGrammar } = appState.setup;
-  const grammar = grammarOverride || verbGrammar;
-  const replacements = {
-    "{name}": targetName,
-    "{deadname}": deadname || "their old name",
-    "{be}": grammar === "plural" ? "are" : "is",
-    "{have}": grammar === "plural" ? "have" : "has",
-    "{s}": grammar === "plural" ? "" : "s",
-    "{were}": grammar === "plural" ? "were" : "was",
-    "{don't}": grammar === "plural" ? "don't" : "doesn't"
-  };
-  return Object.entries(replacements).reduce(
-    (acc, [token, value]) => acc.replaceAll(token, value),
-    templateString
-  );
-}
+const grammarLexicon = {
+  plural: {
+    be: "are",
+    have: "have",
+    s: "",
+    were: "were",
+    "don't": "don't"
+  },
+  singular: {
+    be: "is",
+    have: "has",
+    s: "s",
+    were: "was",
+    "don't": "doesn't"
+  }
+};
 
-function escapeRegExp(str) {
-  return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+const languageTokenRegex = /\{([^}]+)\}/g;
+
+function applyLanguageRules(template, overrides = {}) {
+  const { targetName, deadname, verbGrammar } = appState.setup;
+  const pronouns = overrides.pronouns || overrides.pronounSet || appState.setup.pronouns;
+  const grammar =
+    overrides.grammar || inferGrammarFromPronoun(pronouns.subject) || verbGrammar;
+
+  const context = {
+    targetName,
+    deadname: deadname || "their old name",
+    pronouns,
+    grammar
+  };
+
+  const grammarTokens = grammarLexicon[grammar] || grammarLexicon.plural;
+
+  return template.replace(languageTokenRegex, (match, rawToken) => {
+    const token = rawToken.trim().toLowerCase();
+
+    const pronounTokens = {
+      subject: context.pronouns.subject,
+      object: context.pronouns.object,
+      possadj: context.pronouns.possAdj,
+      posspron: context.pronouns.possPron,
+      reflexive: context.pronouns.reflexive
+    };
+
+    if (token === "name") return context.targetName;
+    if (token === "deadname") return context.deadname;
+    if (token in pronounTokens) return pronounTokens[token] || "";
+    if (grammarTokens[token] !== undefined) return grammarTokens[token];
+
+    return match;
+  });
 }
 
 function shuffle(arr) {
@@ -318,20 +350,6 @@ function buildTrapPronounSet() {
   };
 }
 
-function fillPronounTemplate(tpl, set, grammarOverride) {
-  return processTemplate(
-    tpl
-      .replaceAll("{name}", appState.setup.targetName)
-      .replaceAll("{deadname}", appState.setup.deadname || "their old name")
-      .replaceAll("{subject}", set.subject)
-      .replaceAll("{object}", set.object)
-      .replaceAll("{possAdj}", set.possAdj)
-      .replaceAll("{possPron}", set.possPron)
-      .replaceAll("{reflexive}", set.reflexive),
-    grammarOverride
-  );
-}
-
 function generateMappingTrials() {
   const { pronouns } = appState.setup;
   const templates = [
@@ -378,7 +396,7 @@ function generateMappingTrials() {
     ).slice(0, 3);
     const options = shuffle([correct, ...distractors]);
 
-    const processed = processTemplate(tpl.text, grammar);
+    const processed = applyLanguageRules(tpl.text, { pronouns, grammar });
     return {
       type: "mapping",
       text: processed,
@@ -406,8 +424,8 @@ function generateExtinctionTrials() {
 
   return baseTemplates.map((tpl, idx) => {
     const useCorrect = idx % 2 === 0;
-    const filled = fillPronounTemplate(tpl, pronouns, correctGrammar);
-    const wrongVersion = fillPronounTemplate(tpl, trapSet, trapGrammar);
+    const filled = applyLanguageRules(tpl, { pronouns, grammar: correctGrammar });
+    const wrongVersion = applyLanguageRules(tpl, { pronouns: trapSet, grammar: trapGrammar });
     const text = useCorrect ? filled : wrongVersion;
 
     return {
@@ -465,14 +483,13 @@ function generateEditingTrials() {
       (p) => correctPronoun && p.toLowerCase() !== correctPronoun.toLowerCase()
     );
     const wrong = wrongCandidates[Math.floor(Math.random() * wrongCandidates.length)] || pool[0] || "";
-    const sentence = tpl.text
-      .replaceAll("{name}", appState.setup.targetName)
-      .replace(/{(subject|object|possAdj|possPron|reflexive)}/g, (_, type) =>
-        type === tpl.wrongType ? wrong : pronouns[type]
-      );
-
+    const pronounSetWithWrong = { ...pronouns, [tpl.wrongType]: wrong };
     const subjectInSentence = tpl.wrongType === "subject" ? wrong : pronouns.subject;
     const grammar = inferGrammarFromPronoun(subjectInSentence) || appState.setup.verbGrammar;
+    const sentence = applyLanguageRules(tpl.text, {
+      pronouns: pronounSetWithWrong,
+      grammar
+    });
 
     const distractors = shuffle(
       (pool || []).filter(
@@ -486,7 +503,7 @@ function generateEditingTrials() {
 
     return {
       type: "editing",
-      text: processTemplate(sentence, grammar),
+      text: sentence,
       correct: correctPronoun,
       wrong,
       wrongType: tpl.wrongType,
@@ -663,7 +680,7 @@ function renderDualTrial(trial) {
     const useCorrect = Math.random() > 0.4;
     const set = useCorrect ? pronouns : trapSet;
     const grammar = inferGrammarFromPronoun(set.subject) || appState.setup.verbGrammar;
-    const text = fillPronounTemplate(tpl, set, grammar);
+    const text = applyLanguageRules(tpl, { pronouns: set, grammar });
     sentence.textContent = text;
     sentence.dataset.correct = useCorrect ? "true" : "false";
     pronounStart = Date.now();
