@@ -130,6 +130,7 @@ const extinctionPresets = [
 const appState = {
   setup: {
     targetName: "",
+    deadname: "",
     pronouns: {
       subject: "",
       object: "",
@@ -138,7 +139,6 @@ const appState = {
       reflexive: ""
     },
     verbGrammar: "plural",
-    extinctionTerms: [],
     extinctionPronouns: {
       subject: "",
       object: "",
@@ -162,6 +162,7 @@ const practiceName = document.getElementById("practice-name");
 const summaryStats = document.getElementById("summary-stats");
 const pronounPresetSelect = document.getElementById("pronounPreset");
 const extinctionPresetSelect = document.getElementById("extinctionPreset");
+const extinctionCustomFields = document.getElementById("extinction-custom-fields");
 const pronounInputs = {
   subject: document.querySelector('input[name="subject"]'),
   object: document.querySelector('input[name="object"]'),
@@ -169,8 +170,15 @@ const pronounInputs = {
   possPron: document.querySelector('input[name="possPron"]'),
   reflexive: document.querySelector('input[name="reflexive"]')
 };
+const extinctionInputs = {
+  subject: document.querySelector('input[name="extinctionSubject"]'),
+  object: document.querySelector('input[name="extinctionObject"]'),
+  possAdj: document.querySelector('input[name="extinctionPossAdj"]'),
+  possPron: document.querySelector('input[name="extinctionPossPron"]'),
+  reflexive: document.querySelector('input[name="extinctionReflexive"]')
+};
 const grammarRadios = document.querySelectorAll('input[name="verbGrammar"]');
-const extinctionTextarea = document.getElementById("extinctionTerms");
+const deadnameInput = document.getElementById("deadname");
 
 const isTouch = navigator.maxTouchPoints && navigator.maxTouchPoints > 0;
 
@@ -203,31 +211,41 @@ function applyPronounPreset(key) {
 function applyExtinctionPreset(key) {
   const preset = extinctionPresets.find((p) => p.key === key);
   if (!preset) return;
+  toggleExtinctionCustomFields(preset.custom);
   if (preset.custom) {
-    extinctionTextarea.value = "";
+    Object.values(extinctionInputs).forEach((input) => {
+      input.value = "";
+    });
     return;
   }
-  const visibleTerms = preset.pronouns
-    ? [
-        preset.pronouns.subject,
-        preset.pronouns.object,
-        preset.pronouns.possAdj,
-        preset.pronouns.possPron,
-        preset.pronouns.reflexive
-      ]
-    : preset.terms;
-  extinctionTextarea.value = visibleTerms.filter(Boolean).join(", ");
+  if (preset.pronouns) {
+    Object.entries(extinctionInputs).forEach(([k, input]) => {
+      input.value = preset.pronouns[k] || "";
+    });
+  }
 }
 
-function processTemplate(templateString) {
-  const { targetName, verbGrammar } = appState.setup;
+function toggleExtinctionCustomFields(show) {
+  extinctionCustomFields.classList.toggle("hidden", !show);
+}
+
+function inferGrammarFromPronoun(pronoun) {
+  const p = (pronoun || "").toLowerCase();
+  const pluralSubjects = ["they", "we", "you", "y'all", "yall", "ya'll"];
+  return pluralSubjects.includes(p) ? "plural" : "singular";
+}
+
+function processTemplate(templateString, grammarOverride) {
+  const { targetName, deadname, verbGrammar } = appState.setup;
+  const grammar = grammarOverride || verbGrammar;
   const replacements = {
     "{name}": targetName,
-    "{be}": verbGrammar === "plural" ? "are" : "is",
-    "{have}": verbGrammar === "plural" ? "have" : "has",
-    "{s}": verbGrammar === "plural" ? "" : "s",
-    "{were}": verbGrammar === "plural" ? "were" : "was",
-    "{don't}": verbGrammar === "plural" ? "don't" : "doesn't"
+    "{deadname}": deadname || "their old name",
+    "{be}": grammar === "plural" ? "are" : "is",
+    "{have}": grammar === "plural" ? "have" : "has",
+    "{s}": grammar === "plural" ? "" : "s",
+    "{were}": grammar === "plural" ? "were" : "was",
+    "{don't}": grammar === "plural" ? "don't" : "doesn't"
   };
   return Object.entries(replacements).reduce(
     (acc, [token, value]) => acc.replaceAll(token, value),
@@ -248,6 +266,7 @@ function shuffle(arr) {
 
 function parseSetup(formData) {
   appState.setup.targetName = formData.get("targetName").trim();
+  appState.setup.deadname = formData.get("deadname").trim();
   appState.setup.pronouns = {
     subject: formData.get("subject").trim(),
     object: formData.get("object").trim(),
@@ -256,33 +275,24 @@ function parseSetup(formData) {
     reflexive: formData.get("reflexive").trim()
   };
   appState.setup.verbGrammar = formData.get("verbGrammar") || "plural";
-  const extinctionRaw = formData.get("extinctionTerms") || "";
   const extinctionPresetKey = formData.get("extinctionPreset") || "none";
-  appState.setup.extinctionTerms = extinctionRaw
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean);
 
   const presetMatch = extinctionPresets.find((p) => p.key === extinctionPresetKey);
   if (presetMatch && presetMatch.pronouns) {
     appState.setup.extinctionPronouns = { ...presetMatch.pronouns };
   } else {
-    const [subject, object, possAdj, possPron, reflexive] = extinctionRaw
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
     appState.setup.extinctionPronouns = {
-      subject: subject || "",
-      object: object || "",
-      possAdj: possAdj || "",
-      possPron: possPron || "",
-      reflexive: reflexive || ""
+      subject: formData.get("extinctionSubject").trim(),
+      object: formData.get("extinctionObject").trim(),
+      possAdj: formData.get("extinctionPossAdj").trim(),
+      possPron: formData.get("extinctionPossPron").trim(),
+      reflexive: formData.get("extinctionReflexive").trim()
     };
   }
 }
 
 function buildTrapPronounSet() {
-  const { extinctionPronouns, extinctionTerms } = appState.setup;
+  const { extinctionPronouns } = appState.setup;
   const defaultTrap = {
     subject: "he",
     object: "him",
@@ -291,9 +301,7 @@ function buildTrapPronounSet() {
     reflexive: "himself"
   };
 
-  const fallbackList = extinctionTerms.length
-    ? extinctionTerms
-    : ["he", "she", "him", "her", "his", "hers", "himself", "herself"];
+  const fallbackList = ["he", "she", "him", "her", "his", "hers", "himself", "herself"];
 
   const trapForType = (type, idx) => {
     if (extinctionPronouns[type]) return extinctionPronouns[type];
@@ -310,15 +318,17 @@ function buildTrapPronounSet() {
   };
 }
 
-function fillPronounTemplate(tpl, set) {
+function fillPronounTemplate(tpl, set, grammarOverride) {
   return processTemplate(
     tpl
       .replaceAll("{name}", appState.setup.targetName)
+      .replaceAll("{deadname}", appState.setup.deadname || "their old name")
       .replaceAll("{subject}", set.subject)
       .replaceAll("{object}", set.object)
       .replaceAll("{possAdj}", set.possAdj)
       .replaceAll("{possPron}", set.possPron)
-      .replaceAll("{reflexive}", set.reflexive)
+      .replaceAll("{reflexive}", set.reflexive),
+    grammarOverride
   );
 }
 
@@ -339,6 +349,7 @@ function generateMappingTrials() {
     { type: "reflexive", text: "___ {be} proud of ___self." }
   ];
 
+  const grammar = inferGrammarFromPronoun(pronouns.subject) || appState.setup.verbGrammar;
   const allPronouns = [
     pronouns.subject,
     pronouns.object,
@@ -367,7 +378,7 @@ function generateMappingTrials() {
     ).slice(0, 3);
     const options = shuffle([correct, ...distractors]);
 
-    const processed = processTemplate(tpl.text);
+    const processed = processTemplate(tpl.text, grammar);
     return {
       type: "mapping",
       text: processed,
@@ -385,15 +396,18 @@ function generateExtinctionTrials() {
     "{name} said {subject} {have} already sent {possAdj} notes.",
     "I handed the keys to {object} because it was not {possPron} turn.",
     "After the meeting, {subject} thanked {object} and reminded {reflexive} to rest.",
-    "The backpack on the chair is {possPron}, so please give it to {object}."
+    "The backpack on the chair is {possPron}, so please give it to {object}.",
+    "Someone used {deadname}, but {subject} corrected {object} and shared {possAdj} right name."
   ];
 
   const trapSet = buildTrapPronounSet();
+  const correctGrammar = inferGrammarFromPronoun(pronouns.subject) || appState.setup.verbGrammar;
+  const trapGrammar = inferGrammarFromPronoun(trapSet.subject) || correctGrammar;
 
   return baseTemplates.map((tpl, idx) => {
     const useCorrect = idx % 2 === 0;
-    const filled = fillPronounTemplate(tpl, pronouns);
-    const wrongVersion = fillPronounTemplate(tpl, trapSet);
+    const filled = fillPronounTemplate(tpl, pronouns, correctGrammar);
+    const wrongVersion = fillPronounTemplate(tpl, trapSet, trapGrammar);
     const text = useCorrect ? filled : wrongVersion;
 
     return {
@@ -431,7 +445,7 @@ function generateEditingTrials() {
       wrongType: "possAdj"
     },
     {
-      text: "{name} reminded the crew that {subject} {be} accountable for {possPron} choices.",
+      text: "{name} reminded the crew that {subject} {be} accountable for {possAdj} choices.",
       wrongType: "subject"
     },
     {
@@ -457,6 +471,9 @@ function generateEditingTrials() {
         type === tpl.wrongType ? wrong : pronouns[type]
       );
 
+    const subjectInSentence = tpl.wrongType === "subject" ? wrong : pronouns.subject;
+    const grammar = inferGrammarFromPronoun(subjectInSentence) || appState.setup.verbGrammar;
+
     const distractors = shuffle(
       (pool || []).filter(
         (p) =>
@@ -469,7 +486,7 @@ function generateEditingTrials() {
 
     return {
       type: "editing",
-      text: processTemplate(sentence),
+      text: processTemplate(sentence, grammar),
       correct: correctPronoun,
       wrong,
       wrongType: tpl.wrongType,
@@ -645,7 +662,8 @@ function renderDualTrial(trial) {
     const tpl = pronounTemplates[Math.floor(Math.random() * pronounTemplates.length)];
     const useCorrect = Math.random() > 0.4;
     const set = useCorrect ? pronouns : trapSet;
-    const text = fillPronounTemplate(tpl, set);
+    const grammar = inferGrammarFromPronoun(set.subject) || appState.setup.verbGrammar;
+    const text = fillPronounTemplate(tpl, set, grammar);
     sentence.textContent = text;
     sentence.dataset.correct = useCorrect ? "true" : "false";
     pronounStart = Date.now();

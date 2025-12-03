@@ -71,9 +71,21 @@
               <p class="helper">Swap quickly between common sets to phase out or keep Custom to type specific terms.</p>
             </div>
             <div class="form-group">
-              <label for="extinctionTerms">Words to phase out (comma separated)</label>
-              <textarea id="extinctionTerms" name="extinctionTerms" rows="3" placeholder="deadname, wrong pronouns"></textarea>
+              <label for="deadname">Deadname (optional, used in traps)</label>
+              <input id="deadname" name="deadname" type="text" placeholder="former name" />
             </div>
+
+            <fieldset class="form-group hidden" id="extinction-custom-fields">
+              <legend>Custom phase-out pronouns</legend>
+              <p class="helper">Shown when "Custom" is selected. Fill each slot to teach the app the exact wrong forms.</p>
+              <div class="pronoun-grid">
+                <label>Subject<input name="extinctionSubject" type="text" placeholder="he" /></label>
+                <label>Object<input name="extinctionObject" type="text" placeholder="him" /></label>
+                <label>Possessive Adj<input name="extinctionPossAdj" type="text" placeholder="his" /></label>
+                <label>Possessive Pron<input name="extinctionPossPron" type="text" placeholder="his" /></label>
+                <label>Reflexive<input name="extinctionReflexive" type="text" placeholder="himself" /></label>
+              </div>
+            </fieldset>
 
             <fieldset class="form-group">
               <legend>Test Styles</legend>
