@@ -282,6 +282,9 @@ function applyLanguageRules(template, overrides = {}) {
   const { targetName, deadname, verbGrammar } = appState.setup;
   const pronouns = overrides.pronouns || overrides.pronounSet || appState.setup.pronouns;
   const grammar = overrides.grammar || verbGrammar || inferGrammarFromPronoun(pronouns.subject);
+  const subject = (pronouns.subject || "").toLowerCase();
+  const grammarForPronouns =
+    grammar === "singular" && subject === "they" ? "plural" : grammar;
 
   const context = {
     targetName,
@@ -290,7 +293,7 @@ function applyLanguageRules(template, overrides = {}) {
     grammar
   };
 
-  const grammarTokens = grammarLexicon[grammar] || grammarLexicon.plural;
+  const grammarTokens = grammarLexicon[grammarForPronouns] || grammarLexicon.plural;
 
   return template.replace(languageTokenRegex, (match, rawToken) => {
     const parts = rawToken.trim().toLowerCase().split(":");
@@ -547,7 +550,9 @@ function generateEditingTrials() {
           (!correctPronoun || p.toLowerCase() !== correctPronoun.toLowerCase())
       )
     ).slice(0, 2);
-    const options = shuffle([correctPronoun, wrong, ...distractors].filter(Boolean));
+    const options = shuffle([
+      ...new Set([correctPronoun, wrong, ...distractors].filter(Boolean))
+    ]);
 
     return {
       type: "editing",
@@ -815,6 +820,7 @@ function renderEditingTrial(trial) {
   continueBtn.style.marginTop = "12px";
 
   let selectedValue = null;
+  let readyToAdvance = false;
 
   tokens.forEach((tok) => {
     const span = document.createElement("span");
@@ -834,9 +840,11 @@ function renderEditingTrial(trial) {
       });
       select.addEventListener("change", () => {
         selectedValue = select.value;
-        continueBtn.disabled = false;
+        readyToAdvance = select.value === trial.correct;
+        continueBtn.disabled = !readyToAdvance;
         select.classList.toggle("incorrect", select.value !== trial.correct);
-        select.classList.toggle("correct", select.value === trial.correct);
+        select.classList.toggle("correct", readyToAdvance);
+        if (readyToAdvance) continueBtn.focus();
       });
       span.replaceWith(select);
       select.focus();
@@ -848,7 +856,7 @@ function renderEditingTrial(trial) {
   trialContainer.appendChild(continueBtn);
 
   continueBtn.addEventListener("click", () => {
-    if (!selectedValue) return;
+    if (!readyToAdvance || !selectedValue) return;
     const isCorrect = selectedValue === trial.correct;
     handleAnswer(isCorrect, nextTrial, "editing", start);
   });
