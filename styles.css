@@ -367,6 +367,17 @@ button.option:focus {
   cursor: pointer;
 }
 
+.token-wrong {
+  border-color: var(--accent);
+  background: rgba(109, 133, 255, 0.12);
+  color: #cfd8ff;
+}
+
+.token-dim {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .dropdown {
   padding: 8px;
   border-radius: 8px;

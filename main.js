@@ -164,6 +164,10 @@ function processTemplate(templateString) {
   );
 }
 
+function escapeRegExp(str) {
+  return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+}
+
 function shuffle(arr) {
   return arr
     .map((item) => ({ item, sort: Math.random() }))
@@ -246,26 +250,38 @@ function generateMappingTrials() {
 
 function generateExtinctionTrials() {
   const { pronouns, extinctionTerms } = appState.setup;
-  const fallback = ["he", "she", "him", "her", "his"];
+  const fallback = ["he", "she", "him", "her", "his", "hers", "himself", "herself"];
   const traps = extinctionTerms.length ? extinctionTerms : fallback;
   const baseTemplates = [
-    "{name} said {they} would arrive soon.",
-    "I handed the keys to {name} because {they} forgot {their} copy.",
-    "Everyone loved {their} presentation.",
-    "The gift was definitely {theirs}."
+    "{name} said {subject} {have} already sent {possAdj} notes.",
+    "I handed the keys to {object} because it was not {possPron} turn.",
+    "After the meeting, {subject} thanked {object} and reminded {reflexive} to rest.",
+    "The backpack on the chair is {possPron}, so please give it to {object}."
   ];
 
   return baseTemplates.map((tpl, idx) => {
     const useCorrect = idx % 2 === 0;
-    const correctText = tpl
-      .replace("{they}", pronouns.subject)
-      .replace("{their}", pronouns.possAdj)
-      .replace("{theirs}", pronouns.possPron)
-      .replace("{name}", appState.setup.targetName);
+    const filledTemplate = tpl
+      .replaceAll("{name}", appState.setup.targetName)
+      .replaceAll("{subject}", pronouns.subject)
+      .replaceAll("{object}", pronouns.object)
+      .replaceAll("{possAdj}", pronouns.possAdj)
+      .replaceAll("{possPron}", pronouns.possPron)
+      .replaceAll("{reflexive}", pronouns.reflexive);
 
-    const trapWord = traps[idx % traps.length];
-    const wrongText = correctText.replace(pronouns.subject, trapWord);
-    const text = processTemplate(useCorrect ? correctText : wrongText);
+    const wrongText = [
+      pronouns.subject,
+      pronouns.object,
+      pronouns.possAdj,
+      pronouns.possPron,
+      pronouns.reflexive
+    ].reduce((acc, currentPronoun, trapIdx) => {
+      if (!currentPronoun) return acc;
+      const regex = new RegExp(`\\b${escapeRegExp(currentPronoun)}\\b`, "gi");
+      return acc.replace(regex, traps[trapIdx % traps.length]);
+    }, filledTemplate);
+
+    const text = processTemplate(useCorrect ? filledTemplate : wrongText);
 
     return {
       type: "extinction",
@@ -288,24 +304,64 @@ function generateDualTrials(sessionSeconds) {
 
 function generateEditingTrials() {
   const { pronouns } = appState.setup;
-  const wrongPronouns = ["he", "she", "him", "her", "they"];
+  const wrongPools = {
+    subject: ["he", "she", "they", "ze", "xe"],
+    object: ["him", "her", "them", "zir", "xem"],
+    possAdj: ["his", "her", "their", "zir", "xyr"],
+    possPron: ["his", "hers", "theirs", "zirs", "xyrs"],
+    reflexive: ["himself", "herself", "themselves", "zirself", "xemself"]
+  };
+
   const templates = [
-    "{name} forgot {have} umbrella, so {pronoun} borrowed mine.",
-    "I asked {pronoun} if the notebook was {pronounPoss}.",
-    "{name} reminded the team that {pronoun} {be} ready."
+    {
+      text: "{subject} left {possAdj} backpack at the cafe, so I handed it back to {object} later.",
+      wrongType: "possAdj"
+    },
+    {
+      text: "{name} reminded the crew that {subject} {be} accountable for {possPron} choices.",
+      wrongType: "subject"
+    },
+    {
+      text: "The director introduced {reflexive} and asked us to support {object} on {possAdj} first day.",
+      wrongType: "reflexive"
+    },
+    {
+      text: "When the bell rang, I checked whether the notebook was truly {possPron} before returning it to {object}.",
+      wrongType: "possPron"
+    }
   ];
+
   return templates.map((tpl) => {
-    const wrong = wrongPronouns[Math.floor(Math.random() * wrongPronouns.length)];
-    const wrongPoss = wrong === "he" ? "his" : wrong === "she" ? "hers" : "theirs";
-    const sentence = tpl
-      .replace("{name}", appState.setup.targetName)
-      .replace("{pronoun}", wrong)
-      .replace("{pronounPoss}", wrongPoss);
+    const correctPronoun = pronouns[tpl.wrongType];
+    const pool = wrongPools[tpl.wrongType] || [];
+    const wrongCandidates = pool.filter(
+      (p) => correctPronoun && p.toLowerCase() !== correctPronoun.toLowerCase()
+    );
+    const wrong = wrongCandidates[Math.floor(Math.random() * wrongCandidates.length)] || pool[0] || "";
+    const sentence = tpl.text
+      .replaceAll("{name}", appState.setup.targetName)
+      .replace(/{(subject|object|possAdj|possPron|reflexive)}/g, (_, type) =>
+        type === tpl.wrongType ? wrong : pronouns[type]
+      );
+
+    const distractors = shuffle(
+      (pool || []).filter(
+        (p) =>
+          p &&
+          p.toLowerCase() !== wrong.toLowerCase() &&
+          (!correctPronoun || p.toLowerCase() !== correctPronoun.toLowerCase())
+      )
+    ).slice(0, 2);
+    const options = shuffle([correctPronoun, wrong, ...distractors].filter(Boolean));
+
     return {
       type: "editing",
       text: processTemplate(sentence),
-      correct: pronouns.subject,
-      wrong
+      correct: correctPronoun,
+      wrong,
+      wrongType: tpl.wrongType,
+      wrongWord: wrong,
+      options
     };
   });
 }
@@ -541,23 +597,26 @@ function renderEditingTrial(trial) {
 
   tokens.forEach((tok) => {
     const span = document.createElement("span");
-    span.className = "token";
-    span.textContent = tok.replace(/\./g, "");
-    span.addEventListener("click", () => {
-      const select = document.createElement("select");
-      select.className = "dropdown";
-      const opts = [trial.correct, trial.wrong, appState.setup.pronouns.object];
-      opts.forEach((o) => {
-        const opt = document.createElement("option");
-        opt.value = o;
-        opt.textContent = o;
-        select.appendChild(opt);
+    const cleaned = tok.replace(/[.,!?]/g, "");
+    const isWrong = cleaned.toLowerCase() === trial.wrongWord.toLowerCase();
+    span.className = isWrong ? "token token-wrong" : "token token-dim";
+    span.textContent = cleaned;
+    if (isWrong) {
+      span.addEventListener("click", () => {
+        const select = document.createElement("select");
+        select.className = "dropdown";
+        trial.options.forEach((o) => {
+          const opt = document.createElement("option");
+          opt.value = o;
+          opt.textContent = o;
+          select.appendChild(opt);
+        });
+        select.addEventListener("change", () => {
+          handleAnswer(select.value === trial.correct, nextTrial, "editing", start);
+        });
+        span.replaceWith(select);
       });
-      select.addEventListener("change", () => {
-        handleAnswer(select.value === trial.correct, nextTrial, "editing", start);
-      });
-      span.replaceWith(select);
-    });
+    }
     tokenWrap.appendChild(span);
   });
 
