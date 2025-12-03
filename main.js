@@ -64,11 +64,66 @@ const pronounPresets = [
 
 const extinctionPresets = [
   { key: "none", label: "None", terms: [] },
-  { key: "heHim", label: "he / him / his / himself", terms: ["he", "him", "his", "himself"] },
-  { key: "sheHer", label: "she / her / hers / herself", terms: ["she", "her", "hers", "herself"] },
-  { key: "theyThem", label: "they / them / theirs / themselves", terms: ["they", "them", "theirs", "themselves"] },
-  { key: "zeZir", label: "ze / zir / zirs / zirself", terms: ["ze", "zir", "zirs", "zirself"] },
-  { key: "xeXem", label: "xe / xem / xyrs / xemself", terms: ["xe", "xem", "xyrs", "xemself"] },
+  {
+    key: "heHim",
+    label: "he / him / his / himself",
+    terms: ["he", "him", "his", "himself"],
+    pronouns: {
+      subject: "he",
+      object: "him",
+      possAdj: "his",
+      possPron: "his",
+      reflexive: "himself"
+    }
+  },
+  {
+    key: "sheHer",
+    label: "she / her / hers / herself",
+    terms: ["she", "her", "hers", "herself"],
+    pronouns: {
+      subject: "she",
+      object: "her",
+      possAdj: "her",
+      possPron: "hers",
+      reflexive: "herself"
+    }
+  },
+  {
+    key: "theyThem",
+    label: "they / them / theirs / themselves",
+    terms: ["they", "them", "theirs", "themselves"],
+    pronouns: {
+      subject: "they",
+      object: "them",
+      possAdj: "their",
+      possPron: "theirs",
+      reflexive: "themselves"
+    }
+  },
+  {
+    key: "zeZir",
+    label: "ze / zir / zirs / zirself",
+    terms: ["ze", "zir", "zirs", "zirself"],
+    pronouns: {
+      subject: "ze",
+      object: "zir",
+      possAdj: "zir",
+      possPron: "zirs",
+      reflexive: "zirself"
+    }
+  },
+  {
+    key: "xeXem",
+    label: "xe / xem / xyrs / xemself",
+    terms: ["xe", "xem", "xyrs", "xemself"],
+    pronouns: {
+      subject: "xe",
+      object: "xem",
+      possAdj: "xyr",
+      possPron: "xyrs",
+      reflexive: "xemself"
+    }
+  },
   { key: "custom", label: "Custom (type exact terms)", custom: true }
 ];
 
@@ -83,7 +138,14 @@ const appState = {
       reflexive: ""
     },
     verbGrammar: "plural",
-    extinctionTerms: []
+    extinctionTerms: [],
+    extinctionPronouns: {
+      subject: "",
+      object: "",
+      possAdj: "",
+      possPron: "",
+      reflexive: ""
+    }
   },
   trials: [],
   currentTrialIndex: 0,
@@ -145,7 +207,16 @@ function applyExtinctionPreset(key) {
     extinctionTextarea.value = "";
     return;
   }
-  extinctionTextarea.value = preset.terms.join(", ");
+  const visibleTerms = preset.pronouns
+    ? [
+        preset.pronouns.subject,
+        preset.pronouns.object,
+        preset.pronouns.possAdj,
+        preset.pronouns.possPron,
+        preset.pronouns.reflexive
+      ]
+    : preset.terms;
+  extinctionTextarea.value = visibleTerms.filter(Boolean).join(", ");
 }
 
 function processTemplate(templateString) {
@@ -186,10 +257,28 @@ function parseSetup(formData) {
   };
   appState.setup.verbGrammar = formData.get("verbGrammar") || "plural";
   const extinctionRaw = formData.get("extinctionTerms") || "";
+  const extinctionPresetKey = formData.get("extinctionPreset") || "none";
   appState.setup.extinctionTerms = extinctionRaw
     .split(",")
     .map((t) => t.trim())
     .filter(Boolean);
+
+  const presetMatch = extinctionPresets.find((p) => p.key === extinctionPresetKey);
+  if (presetMatch && presetMatch.pronouns) {
+    appState.setup.extinctionPronouns = { ...presetMatch.pronouns };
+  } else {
+    const [subject, object, possAdj, possPron, reflexive] = extinctionRaw
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    appState.setup.extinctionPronouns = {
+      subject: subject || "",
+      object: object || "",
+      possAdj: possAdj || "",
+      possPron: possPron || "",
+      reflexive: reflexive || ""
+    };
+  }
 }
 
 function generateMappingTrials() {
@@ -249,9 +338,15 @@ function generateMappingTrials() {
 }
 
 function generateExtinctionTrials() {
-  const { pronouns, extinctionTerms } = appState.setup;
-  const fallback = ["he", "she", "him", "her", "his", "hers", "himself", "herself"];
-  const traps = extinctionTerms.length ? extinctionTerms : fallback;
+  const { pronouns, extinctionPronouns, extinctionTerms } = appState.setup;
+  const defaultTrap = {
+    subject: "he",
+    object: "him",
+    possAdj: "his",
+    possPron: "his",
+    reflexive: "himself"
+  };
+
   const baseTemplates = [
     "{name} said {subject} {have} already sent {possAdj} notes.",
     "I handed the keys to {object} because it was not {possPron} turn.",
@@ -259,29 +354,38 @@ function generateExtinctionTrials() {
     "The backpack on the chair is {possPron}, so please give it to {object}."
   ];
 
+  const fallbackList = extinctionTerms.length
+    ? extinctionTerms
+    : ["he", "she", "him", "her", "his", "hers", "himself", "herself"];
+
+  const trapForType = (type, idx) => {
+    if (extinctionPronouns[type]) return extinctionPronouns[type];
+    if (fallbackList.length) return fallbackList[idx % fallbackList.length];
+    return defaultTrap[type];
+  };
+
+  const fillTemplate = (tpl, set) =>
+    tpl
+      .replaceAll("{name}", appState.setup.targetName)
+      .replaceAll("{subject}", set.subject)
+      .replaceAll("{object}", set.object)
+      .replaceAll("{possAdj}", set.possAdj)
+      .replaceAll("{possPron}", set.possPron)
+      .replaceAll("{reflexive}", set.reflexive);
+
   return baseTemplates.map((tpl, idx) => {
     const useCorrect = idx % 2 === 0;
-    const filledTemplate = tpl
-      .replaceAll("{name}", appState.setup.targetName)
-      .replaceAll("{subject}", pronouns.subject)
-      .replaceAll("{object}", pronouns.object)
-      .replaceAll("{possAdj}", pronouns.possAdj)
-      .replaceAll("{possPron}", pronouns.possPron)
-      .replaceAll("{reflexive}", pronouns.reflexive);
+    const trapSet = {
+      subject: trapForType("subject", 0),
+      object: trapForType("object", 1),
+      possAdj: trapForType("possAdj", 2),
+      possPron: trapForType("possPron", 3),
+      reflexive: trapForType("reflexive", 4)
+    };
 
-    const wrongText = [
-      pronouns.subject,
-      pronouns.object,
-      pronouns.possAdj,
-      pronouns.possPron,
-      pronouns.reflexive
-    ].reduce((acc, currentPronoun, trapIdx) => {
-      if (!currentPronoun) return acc;
-      const regex = new RegExp(`\\b${escapeRegExp(currentPronoun)}\\b`, "gi");
-      return acc.replace(regex, traps[trapIdx % traps.length]);
-    }, filledTemplate);
-
-    const text = processTemplate(useCorrect ? filledTemplate : wrongText);
+    const filled = fillTemplate(tpl, pronouns);
+    const wrongVersion = fillTemplate(tpl, trapSet);
+    const text = processTemplate(useCorrect ? filled : wrongVersion);
 
     return {
       type: "extinction",
@@ -444,7 +548,10 @@ function renderExtinctionTrial(trial) {
 
   const modeHint = document.createElement("p");
   modeHint.className = "label";
-  modeHint.textContent = trial.mode === "gng" ? "Go/No-Go: press SPACE if correct" : "Looks OK or Incorrect?";
+  modeHint.textContent =
+    trial.mode === "gng"
+      ? "Go/No-Go style: tap if the sentence is correct for the person."
+      : "Does this look OK or incorrect?";
   trialContainer.appendChild(modeHint);
 
   const buttons = document.createElement("div");
@@ -452,14 +559,14 @@ function renderExtinctionTrial(trial) {
 
   const okBtn = document.createElement("button");
   okBtn.className = "option";
-  okBtn.textContent = trial.mode === "gng" ? "SPACE = Correct" : "Looks OK";
+  okBtn.textContent = "Correct";
   okBtn.addEventListener("click", () =>
     handleAnswer(trial.isCorrect, nextTrial, "extinction", start)
   );
 
   const wrongBtn = document.createElement("button");
   wrongBtn.className = "option";
-  wrongBtn.textContent = trial.mode === "gng" ? "Do Nothing / Wrong" : "Incorrect";
+  wrongBtn.textContent = "Incorrect";
   wrongBtn.addEventListener("click", () =>
     handleAnswer(!trial.isCorrect, nextTrial, "extinction", start)
   );
@@ -547,17 +654,7 @@ function renderDualTrial(trial) {
     clearInterval(numberInterval);
     clearInterval(pronounInterval);
     clearTimeout(appState.dualTimers.block);
-    document.removeEventListener("keydown", keyHandler);
   };
-
-  const keyHandler = (e) => {
-    if (e.key.toLowerCase() === "f") handleNumberAnswer("odd");
-    if (e.key.toLowerCase() === "j") handleNumberAnswer("even");
-    if (e.code === "Space") handlePronounAnswer(true);
-    if (e.key.toLowerCase() === "k") handlePronounAnswer(false);
-  };
-
-  document.addEventListener("keydown", keyHandler);
 
   const handleNumberAnswer = (choice) => {
     const value = Number(numberArea.textContent) || 0;
@@ -717,13 +814,6 @@ document.getElementById("setup-form").addEventListener("submit", (e) => {
   };
   const sessionLength = Number(data.get("sessionLength")) || 30;
   startSession(selectedModes, sessionLength);
-});
-
-window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && !setupScreen.classList.contains("hidden")) return;
-  if (e.key === "Escape") {
-    showSummary();
-  }
 });
 
 document.getElementById("restart-btn").addEventListener("click", resetApp);
