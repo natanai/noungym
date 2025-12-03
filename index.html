@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Noun Gym - Pronoun Practice</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="page-header">
+    <h1>Noun Gym</h1>
+    <p class="tagline">Single-session practice for names and pronouns.</p>
+  </header>
+
+  <main>
+    <section id="setup-screen">
+      <h2>Pronoun practice setup</h2>
+      <form id="setup-form" novalidate>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="targetName">Name you want to practice</label>
+            <input type="text" id="targetName" name="targetName" placeholder="Alex" required />
+          </div>
+
+          <fieldset class="form-group pronoun-set">
+            <legend>Pronoun set</legend>
+            <div class="pronoun-fields">
+              <label>Subject
+                <input type="text" id="pronounSubject" name="pronounSubject" placeholder="they" required />
+              </label>
+              <label>Object
+                <input type="text" id="pronounObject" name="pronounObject" placeholder="them" required />
+              </label>
+              <label>Possessive adjective
+                <input type="text" id="pronounPossAdj" name="pronounPossAdj" placeholder="their" required />
+              </label>
+              <label>Possessive pronoun
+                <input type="text" id="pronounPossPron" name="pronounPossPron" placeholder="theirs" />
+              </label>
+              <label>Reflexive
+                <input type="text" id="pronounReflexive" name="pronounReflexive" placeholder="themself" required />
+              </label>
+            </div>
+          </fieldset>
+
+          <div class="form-group">
+            <label for="extinctionTerms">Words you’re trying to phase out for this person (deadname, old pronouns, nicknames). Separate with commas.</label>
+            <textarea id="extinctionTerms" name="extinctionTerms" rows="3" placeholder="Former name, wrong pronoun"></textarea>
+          </div>
+
+          <fieldset class="form-group">
+            <legend>Choose test styles</legend>
+            <div class="checkboxes">
+              <label><input type="checkbox" id="testStyleMapping" name="testStyleMapping" value="mapping" /> Quick mapping (choose correct pronoun)</label>
+              <label><input type="checkbox" id="testStyleExtinction" name="testStyleExtinction" value="extinction" /> Extinction / flag wrong pronouns</label>
+              <label><input type="checkbox" id="testStyleDual" name="testStyleDual" value="dual" /> Dual-task (numbers + pronouns)</label>
+              <label><input type="checkbox" id="testStyleEditing" name="testStyleEditing" value="editing" /> Sentence editing (click and fix)</label>
+            </div>
+            <p id="style-error" class="error-message" aria-live="polite"></p>
+          </fieldset>
+
+          <fieldset class="form-group">
+            <legend>Session length</legend>
+            <div class="radio-group">
+              <label><input type="radio" name="sessionLength" value="short" /> Short (30 trials)</label>
+              <label><input type="radio" name="sessionLength" value="medium" checked /> Medium (60 trials)</label>
+              <label><input type="radio" name="sessionLength" value="long" /> Long (90 trials)</label>
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="primary">Start practice</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="test-screen" class="hidden">
+      <div class="test-header">
+        <div>
+          <p class="label">Practicing</p>
+          <p id="practice-name" class="practice-name"></p>
+        </div>
+        <div class="trial-status" id="trial-status"></div>
+      </div>
+      <div id="trial-container" class="trial-container"></div>
+      <div class="test-footer">
+        <p>Press ESC to cancel session and go back to setup.</p>
+      </div>
+    </section>
+
+    <section id="summary-screen" class="hidden">
+      <h2>Session summary (not saved)</h2>
+      <div id="summary-content" class="summary-content"></div>
+      <p class="note">These results exist only in this tab and will disappear when you leave or reload.</p>
+      <div class="actions">
+        <button id="restart-session" class="secondary">Start another session</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="main.js"></script>
+</body>
+</html>
