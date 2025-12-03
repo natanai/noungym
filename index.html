@@ -21,12 +21,7 @@
         </div>
       </div>
       <div class="hero-copy">
-        <p class="subtitle">Rewire habits with quick, feedback-heavy drills.</p>
-        <div class="hero-tags">
-          <span class="pill">Guided flow</span>
-          <span class="pill pill-ghost">Adaptive feedback</span>
-          <span class="pill pill-ghost">Session-ready in seconds</span>
-        </div>
+        <p class="subtitle">Pronoun drills with a calm, focused layout.</p>
       </div>
     </header>
 
@@ -39,18 +34,13 @@
             <div>
               <p class="eyebrow">Session Setup</p>
               <h2>Personalize the drills</h2>
-              <p class="helper">
-                Pick a pronoun module or customize both the set you want to practice and the one you want to phase out.
-              </p>
             </div>
-            <span class="pill">Single session</span>
           </div>
 
           <div class="panel-grid">
             <div class="panel">
               <div class="panel-header">
                 <h3>Target identity</h3>
-                <p class="helper">Build the muscle memory you want to keep.</p>
               </div>
 
               <div class="form-group">
@@ -61,7 +51,6 @@
               <div class="form-group">
                 <label for="pronounPreset">Preferred pronoun module</label>
                 <select id="pronounPreset" name="pronounPreset"></select>
-                <p class="helper">Choose a preset to auto-fill. Pick "Custom" to keep your own values.</p>
               </div>
 
               <fieldset class="form-group">
@@ -77,20 +66,18 @@
 
               <fieldset class="form-group">
                 <legend>Grammar Usage</legend>
-                <label class="radio"><input type="radio" name="verbGrammar" value="plural" checked />Plural verbs (e.g., "They are")</label>
-                <label class="radio"><input type="radio" name="verbGrammar" value="singular" />Singular verbs (e.g., "Ze is")</label>
+                <label class="radio"><input type="radio" name="verbGrammar" value="plural" checked />Plural verbs</label>
+                <label class="radio"><input type="radio" name="verbGrammar" value="singular" />Singular verbs</label>
               </fieldset>
             </div>
 
             <div class="panel">
               <div class="panel-header">
                 <h3>Phase-out focus</h3>
-                <p class="helper">Tell the trainer what to avoid so feedback can stay sharp.</p>
               </div>
               <div class="form-group">
                 <label for="extinctionPreset">Pronouns to extinguish</label>
                 <select id="extinctionPreset" name="extinctionPreset"></select>
-                <p class="helper">Swap quickly between common sets to phase out or keep Custom to type specific terms.</p>
               </div>
               <div class="form-group">
                 <label for="deadname">Deadname (optional, used in traps)</label>
@@ -99,7 +86,6 @@
 
               <fieldset class="form-group hidden" id="extinction-custom-fields">
                 <legend>Custom phase-out pronouns</legend>
-                <p class="helper">Shown when "Custom" is selected. Fill each slot to teach the app the exact wrong forms.</p>
                 <div class="pronoun-grid">
                   <label>Subject<input name="extinctionSubject" type="text" placeholder="he" /></label>
                   <label>Object<input name="extinctionObject" type="text" placeholder="him" /></label>
@@ -111,10 +97,10 @@
 
               <fieldset class="form-group">
                 <legend>Test Styles</legend>
-                <label><input type="checkbox" name="testStyleMapping" checked /> Quick Mapping (Fill in the blank)</label>
-                <label><input type="checkbox" name="testStyleExtinction" checked /> Extinction (Flag incorrect usage)</label>
-                <label><input type="checkbox" name="testStyleDual" /> Dual-Task (Cognitive Interference)</label>
-                <label><input type="checkbox" name="testStyleEditing" /> Sentence Editing (Click to fix)</label>
+                <label><input type="checkbox" name="testStyleMapping" checked /> Quick Mapping</label>
+                <label><input type="checkbox" name="testStyleExtinction" checked /> Extinction</label>
+                <label><input type="checkbox" name="testStyleDual" /> Dual-Task</label>
+                <label><input type="checkbox" name="testStyleEditing" /> Sentence Editing</label>
               </fieldset>
 
               <div class="form-group">
@@ -129,33 +115,9 @@
           </div>
 
           <div class="actions">
-            <div class="microcopy">
-              <p class="label">Ready check</p>
-              <p class="helper">We'll randomize trials and keep a tight loop on feedback. You can restart anytime.</p>
-            </div>
             <button type="submit" class="primary">Start Practice</button>
           </div>
         </form>
-
-        <aside class="side-panel card">
-          <p class="eyebrow">Need a plan?</p>
-          <h3>Design a practice that sticks</h3>
-          <ul class="checklist">
-            <li><span>🧠</span><div><strong>Context first.</strong><p>Use the target name so the drills mirror real conversations.</p></div></li>
-            <li><span>🎯</span><div><strong>One focus at a time.</strong><p>Pick a single phase-out set to reduce cognitive overload.</p></div></li>
-            <li><span>⏱️</span><div><strong>Short bursts.</strong><p>30–60 second sessions keep attention high and repetition fast.</p></div></li>
-          </ul>
-          <div class="stat-strip">
-            <div class="stat">
-              <p class="label">Modes enabled</p>
-              <p class="stat-value">Mapping · Extinction</p>
-            </div>
-            <div class="stat">
-              <p class="label">Session mood</p>
-              <p class="stat-value">Supportive &amp; direct</p>
-            </div>
-          </div>
-        </aside>
       </div>
     </section>
 
