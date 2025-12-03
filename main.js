@@ -281,6 +281,47 @@ function parseSetup(formData) {
   }
 }
 
+function buildTrapPronounSet() {
+  const { extinctionPronouns, extinctionTerms } = appState.setup;
+  const defaultTrap = {
+    subject: "he",
+    object: "him",
+    possAdj: "his",
+    possPron: "his",
+    reflexive: "himself"
+  };
+
+  const fallbackList = extinctionTerms.length
+    ? extinctionTerms
+    : ["he", "she", "him", "her", "his", "hers", "himself", "herself"];
+
+  const trapForType = (type, idx) => {
+    if (extinctionPronouns[type]) return extinctionPronouns[type];
+    if (fallbackList.length) return fallbackList[idx % fallbackList.length];
+    return defaultTrap[type];
+  };
+
+  return {
+    subject: trapForType("subject", 0),
+    object: trapForType("object", 1),
+    possAdj: trapForType("possAdj", 2),
+    possPron: trapForType("possPron", 3),
+    reflexive: trapForType("reflexive", 4)
+  };
+}
+
+function fillPronounTemplate(tpl, set) {
+  return processTemplate(
+    tpl
+      .replaceAll("{name}", appState.setup.targetName)
+      .replaceAll("{subject}", set.subject)
+      .replaceAll("{object}", set.object)
+      .replaceAll("{possAdj}", set.possAdj)
+      .replaceAll("{possPron}", set.possPron)
+      .replaceAll("{reflexive}", set.reflexive)
+  );
+}
+
 function generateMappingTrials() {
   const { pronouns } = appState.setup;
   const templates = [
@@ -338,14 +379,7 @@ function generateMappingTrials() {
 }
 
 function generateExtinctionTrials() {
-  const { pronouns, extinctionPronouns, extinctionTerms } = appState.setup;
-  const defaultTrap = {
-    subject: "he",
-    object: "him",
-    possAdj: "his",
-    possPron: "his",
-    reflexive: "himself"
-  };
+  const { pronouns } = appState.setup;
 
   const baseTemplates = [
     "{name} said {subject} {have} already sent {possAdj} notes.",
@@ -354,38 +388,13 @@ function generateExtinctionTrials() {
     "The backpack on the chair is {possPron}, so please give it to {object}."
   ];
 
-  const fallbackList = extinctionTerms.length
-    ? extinctionTerms
-    : ["he", "she", "him", "her", "his", "hers", "himself", "herself"];
-
-  const trapForType = (type, idx) => {
-    if (extinctionPronouns[type]) return extinctionPronouns[type];
-    if (fallbackList.length) return fallbackList[idx % fallbackList.length];
-    return defaultTrap[type];
-  };
-
-  const fillTemplate = (tpl, set) =>
-    tpl
-      .replaceAll("{name}", appState.setup.targetName)
-      .replaceAll("{subject}", set.subject)
-      .replaceAll("{object}", set.object)
-      .replaceAll("{possAdj}", set.possAdj)
-      .replaceAll("{possPron}", set.possPron)
-      .replaceAll("{reflexive}", set.reflexive);
+  const trapSet = buildTrapPronounSet();
 
   return baseTemplates.map((tpl, idx) => {
     const useCorrect = idx % 2 === 0;
-    const trapSet = {
-      subject: trapForType("subject", 0),
-      object: trapForType("object", 1),
-      possAdj: trapForType("possAdj", 2),
-      possPron: trapForType("possPron", 3),
-      reflexive: trapForType("reflexive", 4)
-    };
-
-    const filled = fillTemplate(tpl, pronouns);
-    const wrongVersion = fillTemplate(tpl, trapSet);
-    const text = processTemplate(useCorrect ? filled : wrongVersion);
+    const filled = fillPronounTemplate(tpl, pronouns);
+    const wrongVersion = fillPronounTemplate(tpl, trapSet);
+    const text = useCorrect ? filled : wrongVersion;
 
     return {
       type: "extinction",
@@ -492,20 +501,20 @@ function flashFeedback(isCorrect) {
   trialContainer.classList.add(isCorrect ? "feedback-correct" : "feedback-incorrect");
 }
 
-function recordResult(type, correct, startTime) {
+function recordResult(type, correct, startTime, meta = {}) {
   const elapsed = Date.now() - startTime;
   if (!appState.results[type]) appState.results[type] = [];
-  appState.results[type].push({ correct, rt: elapsed });
+  appState.results[type].push({ correct, rt: elapsed, ...meta });
 }
 
-function handleAnswer(correct, onAdvance, type, startTime) {
+function handleAnswer(correct, onAdvance, type, startTime, meta = {}) {
   flashFeedback(correct);
   if (correct) {
-    recordResult(type, true, startTime);
+    recordResult(type, true, startTime, meta);
     onAdvance();
     return;
   }
-  recordResult(type, false, startTime);
+  recordResult(type, false, startTime, meta);
   const overlay = document.createElement("div");
   overlay.className = "label";
   overlay.textContent = "Incorrect — pause & review";
@@ -577,7 +586,6 @@ function renderExtinctionTrial(trial) {
 }
 
 function renderDualTrial(trial) {
-  const start = Date.now();
   trialContainer.innerHTML = "";
   const grid = document.createElement("div");
   grid.className = "dual-grid";
@@ -616,30 +624,31 @@ function renderDualTrial(trial) {
   grid.appendChild(pronounArea);
   trialContainer.appendChild(grid);
 
+  let numberStart = Date.now();
+  let pronounStart = Date.now();
   const handleNumber = (value) => {
+    numberStart = Date.now();
     numberArea.textContent = value;
   };
 
   const pronounTemplates = [
-    "{name} said {be} arriving now.",
-    "We should ask {name} if ___ needs help.",
-    "I saw {name} and waved at ___.",
-    "The coat is definitely ___.",
-    "{name} reminded everyone to pace ___self."
+    "{subject} {have} finished {possAdj} report.",
+    "I reminded {object} that the seat was {possPron}.",
+    "{name} coached {object} to pace {reflexive}.",
+    "Please send {possAdj} file so {subject} can review.",
+    "{name} said {subject} {were} proud of {reflexive}."
   ];
 
   const { pronouns } = appState.setup;
+  const trapSet = buildTrapPronounSet();
   const fillSentence = () => {
     const tpl = pronounTemplates[Math.floor(Math.random() * pronounTemplates.length)];
-    const correct = Math.random() > 0.4;
-    const processed = processTemplate(tpl.replace("{name}", appState.setup.targetName));
-    const filled = processed
-      .replace("___ needs", (correct ? pronouns.subject : "he") + " needs")
-      .replace("waved at ___", `waved at ${correct ? pronouns.object : "him"}`)
-      .replace("is definitely ___", `is definitely ${correct ? pronouns.possPron : "his"}`)
-      .replace("pace ___self", `pace ${correct ? pronouns.reflexive : "himself"}`);
-    sentence.textContent = filled;
-    sentence.dataset.correct = correct ? "true" : "false";
+    const useCorrect = Math.random() > 0.4;
+    const set = useCorrect ? pronouns : trapSet;
+    const text = fillPronounTemplate(tpl, set);
+    sentence.textContent = text;
+    sentence.dataset.correct = useCorrect ? "true" : "false";
+    pronounStart = Date.now();
   };
 
   const numberInterval = setInterval(() => {
@@ -648,6 +657,7 @@ function renderDualTrial(trial) {
   }, 2000);
 
   const pronounInterval = setInterval(fillSentence, 4000);
+  handleNumber(Math.floor(Math.random() * 90) + 10);
   fillSentence();
 
   const cleanup = () => {
@@ -661,12 +671,13 @@ function renderDualTrial(trial) {
     const isEven = value % 2 === 0;
     const correct = (choice === "even" && isEven) || (choice === "odd" && !isEven);
     flashFeedback(correct);
+    recordResult("dual", correct, numberStart, { task: "number" });
   };
 
   const handlePronounAnswer = (claimedCorrect) => {
     const correct = sentence.dataset.correct === "true";
     const overall = claimedCorrect === correct;
-    handleAnswer(overall, () => {}, "dual", start);
+    handleAnswer(overall, () => {}, "dual", pronounStart, { task: "pronoun" });
   };
 
   oddBtn.addEventListener("click", () => handleNumberAnswer("odd"));
