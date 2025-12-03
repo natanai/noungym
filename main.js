@@ -27,6 +27,12 @@ const appState = {
   keyHandlersActive: false,
   activeKeyHandler: null,
   activeTimeout: null,
+  shownIntros: {
+    mapping: false,
+    extinction: false,
+    dual: false,
+    editing: false,
+  },
 };
 
 const sessionLengthMap = {
@@ -36,6 +42,14 @@ const sessionLengthMap = {
 };
 
 const distractorPronouns = ["he", "she", "they", "ze", "hir", "it", "xe"];
+
+const pronounPresets = {
+  they: { subject: "they", object: "them", possAdj: "their", possPron: "theirs", reflexive: "themself" },
+  she: { subject: "she", object: "her", possAdj: "her", possPron: "hers", reflexive: "herself" },
+  he: { subject: "he", object: "him", possAdj: "his", possPron: "his", reflexive: "himself" },
+  ze: { subject: "ze", object: "hir", possAdj: "hir", possPron: "hirs", reflexive: "hirself" },
+  xe: { subject: "xe", object: "xem", possAdj: "xyr", possPron: "xyrs", reflexive: "xemself" },
+};
 
 function $(selector) {
   return document.querySelector(selector);
@@ -65,6 +79,17 @@ function parseExtinctionTerms(raw) {
     .map((t) => t.trim())
     .filter(Boolean)
     .map((t) => t.toLowerCase());
+}
+
+function applyPronounPreset(key) {
+  if (!key || key === "custom") return;
+  const preset = pronounPresets[key];
+  if (!preset) return;
+  $("#pronounSubject").value = preset.subject;
+  $("#pronounObject").value = preset.object;
+  $("#pronounPossAdj").value = preset.possAdj;
+  $("#pronounPossPron").value = preset.possPron;
+  $("#pronounReflexive").value = preset.reflexive;
 }
 
 function showSection(sectionId) {
@@ -106,6 +131,7 @@ function resetAppState(preserveSetup = false) {
   appState.keyHandlersActive = false;
   appState.activeKeyHandler = null;
   appState.activeTimeout = null;
+  appState.shownIntros = { mapping: false, extinction: false, dual: false, editing: false };
 
   if (preserveSetup) {
     appState.setup = previousSetup;
@@ -389,6 +415,7 @@ function generateEditingTrials(count) {
 
 function startSession() {
   appState.currentTrialIndex = 0;
+  appState.shownIntros = { mapping: false, extinction: false, dual: false, editing: false };
   $("#practice-name").textContent = appState.setup.targetName || "Your person";
   showSection("test-screen");
   updateTrialStatus();
@@ -407,6 +434,11 @@ function renderNextTrial() {
 function renderTrial(trial) {
   const container = $("#trial-container");
   container.innerHTML = "";
+  if (!appState.shownIntros[trial.kind]) {
+    renderIntroCard(trial.kind, container, trial);
+    updateTrialStatus();
+    return;
+  }
   switch (trial.kind) {
     case "mapping":
       renderMappingTrial(trial, container);
@@ -442,6 +474,65 @@ function finishTrial(trial, resultData) {
   });
   appState.currentTrialIndex += 1;
   renderNextTrial();
+}
+
+function renderIntroCard(kind, container, trial) {
+  const introCopy = {
+    mapping: {
+      title: "Quick mapping",
+      summary: "Fill in the blank with the correct pronoun form.",
+      tips: ["Click the option that completes the sentence.", "Move quickly; each item is one blank."],
+    },
+    extinction: {
+      title: "Extinction",
+      summary: "Spot and stop old pronouns or names.",
+      tips: [
+        "Flag old terms when asked 'Looks OK or Wrong?'.",
+        "In go/no-go rounds, press Space only when everything is correct—stay still if you see an old term.",
+      ],
+    },
+    dual: {
+      title: "Dual-task",
+      summary: "Numbers + pronouns at once.",
+      tips: ["F = odd, J = even numbers.", "Space = correct pronouns, K = old pronoun/name."],
+    },
+    editing: {
+      title: "Sentence editing",
+      summary: "Swap highlighted words to the correct forms before finishing.",
+      tips: ["Tap highlighted tokens to choose the right word.", "Finish when everything that needs a change is corrected."],
+    },
+  };
+
+  const info = introCopy[kind];
+  const card = document.createElement("div");
+  card.className = "card intro-card";
+  card.innerHTML = `
+    <div class="badge">New test style</div>
+    <h3>${info.title}</h3>
+    <p>${info.summary}</p>
+  `;
+
+  const list = document.createElement("ul");
+  list.className = "tip-list";
+  info.tips.forEach((tip) => {
+    const li = document.createElement("li");
+    li.textContent = tip;
+    list.appendChild(li);
+  });
+  card.appendChild(list);
+
+  const action = document.createElement("div");
+  action.className = "actions align-start";
+  const button = document.createElement("button");
+  button.className = "primary";
+  button.textContent = "Start this style";
+  button.addEventListener("click", () => {
+    appState.shownIntros[kind] = true;
+    renderTrial(trial);
+  });
+  action.appendChild(button);
+  card.appendChild(action);
+  container.appendChild(card);
 }
 
 function renderMappingTrial(trial, container) {
@@ -839,6 +930,11 @@ function attachGlobalListeners() {
   restart.addEventListener("click", () => {
     resetAppState(false);
     showSection("setup-screen");
+  });
+
+  const presetSelect = $("#pronounPreset");
+  presetSelect.addEventListener("change", (event) => {
+    applyPronounPreset(event.target.value);
   });
 
   window.addEventListener("keydown", (event) => {

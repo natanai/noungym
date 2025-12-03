@@ -22,6 +22,19 @@
             <input type="text" id="targetName" name="targetName" placeholder="Alex" required />
           </div>
 
+          <div class="form-group">
+            <label for="pronounPreset">Quick pronoun presets</label>
+            <select id="pronounPreset" name="pronounPreset">
+              <option value="custom">Type your own</option>
+              <option value="they">They / Them / Their / Theirs / Themself</option>
+              <option value="she">She / Her / Her / Hers / Herself</option>
+              <option value="he">He / Him / His / His / Himself</option>
+              <option value="ze">Ze / Hir / Hir / Hirs / Hirself</option>
+              <option value="xe">Xe / Xem / Xyr / Xyrs / Xemself</option>
+            </select>
+            <p class="small-text">Choose a set to auto-fill the fields below, then tweak as needed.</p>
+          </div>
+
           <fieldset class="form-group pronoun-set">
             <legend>Pronoun set</legend>
             <div class="pronoun-fields">
@@ -56,6 +69,25 @@
               <label><input type="checkbox" id="testStyleDual" name="testStyleDual" value="dual" /> Dual-task (numbers + pronouns)</label>
               <label><input type="checkbox" id="testStyleEditing" name="testStyleEditing" value="editing" /> Sentence editing (click and fix)</label>
             </div>
+            <div class="test-explainer">
+              <div>
+                <h4>Quick mapping</h4>
+                <p>Fill in a single blank with the right pronoun form. One click, fast pace.</p>
+              </div>
+              <div>
+                <h4>Extinction</h4>
+                <p>See everyday sentences. Either flag any old names/pronouns or inhibit a response when they appear.</p>
+              </div>
+              <div>
+                <h4>Dual-task</h4>
+                <p>Numbers and pronouns together: F for odd, J for even; Space for correct pronouns, K to flag old terms.</p>
+              </div>
+              <div>
+                <h4>Sentence editing</h4>
+                <p>Tap highlighted words to swap them to the correct forms before moving on.</p>
+              </div>
+              <p class="note">When you start, you’ll see a quick instruction card the first time each style appears.</p>
+            </div>
             <p id="style-error" class="error-message" aria-live="polite"></p>
           </fieldset>
 
@@ -82,6 +114,10 @@
           <p id="practice-name" class="practice-name"></p>
         </div>
         <div class="trial-status" id="trial-status"></div>
+      </div>
+      <div class="callout muted" id="test-guidance">
+        <h3>What to expect</h3>
+        <p>The first time a test style appears, you’ll see a short instruction card. Use it to get oriented before the timer starts.</p>
       </div>
       <div id="trial-container" class="trial-container"></div>
       <div class="test-footer">
