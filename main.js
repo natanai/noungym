@@ -345,8 +345,8 @@ function generateMappingTrials() {
     { type: "possAdj", text: "That is ___ coat." },
     { type: "possAdj", text: "___ dog is very cute." },
     { type: "possAdj", text: "We should go to ___ house." },
-    { type: "reflexive", text: "___ bought it for ___self." },
-    { type: "reflexive", text: "___ {be} proud of ___self." }
+    { type: "reflexive", text: "{name} bought it for {reflexive}." },
+    { type: "reflexive", text: "{name} {be} proud of {reflexive}." }
   ];
 
   const grammar = inferGrammarFromPronoun(pronouns.subject) || appState.setup.verbGrammar;
@@ -384,7 +384,7 @@ function generateMappingTrials() {
       text: processed,
       correct,
       options,
-      blanks: tpl.type === "reflexive" ? 2 : 1
+      blanks: 1
     };
   });
 }
