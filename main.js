@@ -1,3 +1,77 @@
+const pronounPresets = [
+  {
+    key: "theyThem",
+    label: "They/Them • plural verbs",
+    pronouns: {
+      subject: "they",
+      object: "them",
+      possAdj: "their",
+      possPron: "theirs",
+      reflexive: "themselves"
+    },
+    verbGrammar: "plural"
+  },
+  {
+    key: "sheHer",
+    label: "She/Her • singular verbs",
+    pronouns: {
+      subject: "she",
+      object: "her",
+      possAdj: "her",
+      possPron: "hers",
+      reflexive: "herself"
+    },
+    verbGrammar: "singular"
+  },
+  {
+    key: "heHim",
+    label: "He/Him • singular verbs",
+    pronouns: {
+      subject: "he",
+      object: "him",
+      possAdj: "his",
+      possPron: "his",
+      reflexive: "himself"
+    },
+    verbGrammar: "singular"
+  },
+  {
+    key: "zeZir",
+    label: "Ze/Zir • singular verbs",
+    pronouns: {
+      subject: "ze",
+      object: "zir",
+      possAdj: "zir",
+      possPron: "zirs",
+      reflexive: "zirself"
+    },
+    verbGrammar: "singular"
+  },
+  {
+    key: "xeXem",
+    label: "Xe/Xem • singular verbs",
+    pronouns: {
+      subject: "xe",
+      object: "xem",
+      possAdj: "xyr",
+      possPron: "xyrs",
+      reflexive: "xemself"
+    },
+    verbGrammar: "singular"
+  },
+  { key: "custom", label: "Custom (type any values)", custom: true }
+];
+
+const extinctionPresets = [
+  { key: "none", label: "None", terms: [] },
+  { key: "heHim", label: "he / him / his / himself", terms: ["he", "him", "his", "himself"] },
+  { key: "sheHer", label: "she / her / hers / herself", terms: ["she", "her", "hers", "herself"] },
+  { key: "theyThem", label: "they / them / theirs / themselves", terms: ["they", "them", "theirs", "themselves"] },
+  { key: "zeZir", label: "ze / zir / zirs / zirself", terms: ["ze", "zir", "zirs", "zirself"] },
+  { key: "xeXem", label: "xe / xem / xyrs / xemself", terms: ["xe", "xem", "xyrs", "xemself"] },
+  { key: "custom", label: "Custom (type exact terms)", custom: true }
+];
+
 const appState = {
   setup: {
     targetName: "",
@@ -24,8 +98,55 @@ const trialContainer = document.getElementById("trial-container");
 const trialCounter = document.getElementById("trial-counter");
 const practiceName = document.getElementById("practice-name");
 const summaryStats = document.getElementById("summary-stats");
+const pronounPresetSelect = document.getElementById("pronounPreset");
+const extinctionPresetSelect = document.getElementById("extinctionPreset");
+const pronounInputs = {
+  subject: document.querySelector('input[name="subject"]'),
+  object: document.querySelector('input[name="object"]'),
+  possAdj: document.querySelector('input[name="possAdj"]'),
+  possPron: document.querySelector('input[name="possPron"]'),
+  reflexive: document.querySelector('input[name="reflexive"]')
+};
+const grammarRadios = document.querySelectorAll('input[name="verbGrammar"]');
+const extinctionTextarea = document.getElementById("extinctionTerms");
 
 const isTouch = navigator.maxTouchPoints && navigator.maxTouchPoints > 0;
+
+function populateSelect(selectEl, presets, defaultKey) {
+  selectEl.innerHTML = "";
+  presets.forEach((preset) => {
+    const opt = document.createElement("option");
+    opt.value = preset.key;
+    opt.textContent = preset.label;
+    if (preset.key === defaultKey) opt.selected = true;
+    selectEl.appendChild(opt);
+  });
+}
+
+function setGrammar(value) {
+  grammarRadios.forEach((radio) => {
+    radio.checked = radio.value === value;
+  });
+}
+
+function applyPronounPreset(key) {
+  const preset = pronounPresets.find((p) => p.key === key);
+  if (!preset || preset.custom) return;
+  Object.entries(preset.pronouns).forEach(([k, v]) => {
+    pronounInputs[k].value = v;
+  });
+  setGrammar(preset.verbGrammar);
+}
+
+function applyExtinctionPreset(key) {
+  const preset = extinctionPresets.find((p) => p.key === key);
+  if (!preset) return;
+  if (preset.custom) {
+    extinctionTextarea.value = "";
+    return;
+  }
+  extinctionTextarea.value = preset.terms.join(", ");
+}
 
 function processTemplate(templateString) {
   const { targetName, verbGrammar } = appState.setup;
@@ -516,6 +637,14 @@ function startSession(selectedModes, sessionLength) {
   setScreen("test");
   renderTrial();
 }
+
+populateSelect(pronounPresetSelect, pronounPresets, "theyThem");
+populateSelect(extinctionPresetSelect, extinctionPresets, "none");
+applyPronounPreset("theyThem");
+applyExtinctionPreset("none");
+
+pronounPresetSelect.addEventListener("change", (e) => applyPronounPreset(e.target.value));
+extinctionPresetSelect.addEventListener("change", (e) => applyExtinctionPreset(e.target.value));
 
 document.getElementById("setup-form").addEventListener("submit", (e) => {
   e.preventDefault();

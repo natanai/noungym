@@ -8,63 +8,95 @@
 </head>
 <body>
   <header class="app-header">
-    <h1>Noun Gym</h1>
-    <p class="subtitle">Single-session practice for names and pronouns.</p>
+    <div class="brand-mark">
+      <span class="brand-icon">☆</span>
+      <div>
+        <p class="eyebrow">Practice Lab</p>
+        <h1>Noun Gym</h1>
+      </div>
+    </div>
+    <p class="subtitle">Rewire habits with quick, feedback-heavy drills.</p>
   </header>
 
   <main>
     <!-- Setup Screen -->
     <section id="setup-screen">
       <form id="setup-form" class="card">
-        <h2>Session Setup</h2>
-
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="targetName">Name</label>
-            <input id="targetName" name="targetName" type="text" placeholder="Alex" required />
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Session Setup</p>
+            <h2>Personalize the drills</h2>
+            <p class="helper">Pick a pronoun module or customize both the set you want to practice and the one you want to phase out.</p>
           </div>
+          <span class="pill">Single session</span>
+        </div>
 
-          <fieldset class="form-group">
-            <legend>Pronouns</legend>
-            <div class="pronoun-grid">
-              <label>Subject<input name="subject" type="text" placeholder="they" required /></label>
-              <label>Object<input name="object" type="text" placeholder="them" required /></label>
-              <label>Possessive Adj<input name="possAdj" type="text" placeholder="their" required /></label>
-              <label>Possessive Pron<input name="possPron" type="text" placeholder="theirs" required /></label>
-              <label>Reflexive<input name="reflexive" type="text" placeholder="themself" required /></label>
+        <div class="panel-grid">
+          <div class="panel">
+            <h3>Target identity</h3>
+            <div class="form-group">
+              <label for="targetName">Name</label>
+              <input id="targetName" name="targetName" type="text" placeholder="Alex" required />
             </div>
-          </fieldset>
 
-          <fieldset class="form-group">
-            <legend>Grammar Usage</legend>
-            <label class="radio"><input type="radio" name="verbGrammar" value="plural" checked />Plural verbs (e.g., "They are")</label>
-            <label class="radio"><input type="radio" name="verbGrammar" value="singular" />Singular verbs (e.g., "Ze is")</label>
-          </fieldset>
+            <div class="form-group">
+              <label for="pronounPreset">Preferred pronoun module</label>
+              <select id="pronounPreset" name="pronounPreset"></select>
+              <p class="helper">Choose a preset to auto-fill. Pick "Custom" to keep your own values.</p>
+            </div>
 
-          <div class="form-group">
-            <label for="extinctionTerms">Words to phase out (comma separated)</label>
-            <textarea id="extinctionTerms" name="extinctionTerms" rows="2" placeholder="deadname, wrong pronouns"></textarea>
+            <fieldset class="form-group">
+              <legend>Pronouns</legend>
+              <div class="pronoun-grid">
+                <label>Subject<input name="subject" type="text" placeholder="they" required /></label>
+                <label>Object<input name="object" type="text" placeholder="them" required /></label>
+                <label>Possessive Adj<input name="possAdj" type="text" placeholder="their" required /></label>
+                <label>Possessive Pron<input name="possPron" type="text" placeholder="theirs" required /></label>
+                <label>Reflexive<input name="reflexive" type="text" placeholder="themself" required /></label>
+              </div>
+            </fieldset>
+
+            <fieldset class="form-group">
+              <legend>Grammar Usage</legend>
+              <label class="radio"><input type="radio" name="verbGrammar" value="plural" checked />Plural verbs (e.g., "They are")</label>
+              <label class="radio"><input type="radio" name="verbGrammar" value="singular" />Singular verbs (e.g., "Ze is")</label>
+            </fieldset>
           </div>
 
-          <fieldset class="form-group">
-            <legend>Test Styles</legend>
-            <label><input type="checkbox" name="testStyleMapping" checked /> Quick Mapping (Fill in the blank)</label>
-            <label><input type="checkbox" name="testStyleExtinction" checked /> Extinction (Flag incorrect usage)</label>
-            <label><input type="checkbox" name="testStyleDual" /> Dual-Task (Cognitive Interference)</label>
-            <label><input type="checkbox" name="testStyleEditing" /> Sentence Editing (Click to fix)</label>
-          </fieldset>
+          <div class="panel">
+            <h3>Phase-out focus</h3>
+            <div class="form-group">
+              <label for="extinctionPreset">Pronouns to extinguish</label>
+              <select id="extinctionPreset" name="extinctionPreset"></select>
+              <p class="helper">Swap quickly between common sets to phase out or keep Custom to type specific terms.</p>
+            </div>
+            <div class="form-group">
+              <label for="extinctionTerms">Words to phase out (comma separated)</label>
+              <textarea id="extinctionTerms" name="extinctionTerms" rows="3" placeholder="deadname, wrong pronouns"></textarea>
+            </div>
 
-          <div class="form-group">
-            <label for="sessionLength">Session Length</label>
-            <select id="sessionLength" name="sessionLength">
-              <option value="30">Short (30s)</option>
-              <option value="60">Medium (60s)</option>
-              <option value="90">Long (90s)</option>
-            </select>
+            <fieldset class="form-group">
+              <legend>Test Styles</legend>
+              <label><input type="checkbox" name="testStyleMapping" checked /> Quick Mapping (Fill in the blank)</label>
+              <label><input type="checkbox" name="testStyleExtinction" checked /> Extinction (Flag incorrect usage)</label>
+              <label><input type="checkbox" name="testStyleDual" /> Dual-Task (Cognitive Interference)</label>
+              <label><input type="checkbox" name="testStyleEditing" /> Sentence Editing (Click to fix)</label>
+            </fieldset>
+
+            <div class="form-group">
+              <label for="sessionLength">Session Length</label>
+              <select id="sessionLength" name="sessionLength">
+                <option value="30">Short (30s)</option>
+                <option value="60">Medium (60s)</option>
+                <option value="90">Long (90s)</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        <button type="submit" class="primary">Start Practice</button>
+        <div class="actions">
+          <button type="submit" class="primary">Start Practice</button>
+        </div>
       </form>
     </section>
 
