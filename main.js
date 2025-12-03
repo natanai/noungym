@@ -677,8 +677,9 @@ function renderDualTrial(trial) {
   trialContainer.innerHTML = "";
   const instructions = document.createElement("p");
   instructions.className = "label";
-  instructions.textContent =
-    "Press Space if the number is odd, Enter if it is even. At the same time, press J for Correct or K for Wrong on the sentence.";
+  instructions.textContent = isTouch
+    ? "Tap ODD or EVEN for the numbers, and tap CORRECT or WRONG for the sentence. No keyboard is needed."
+    : "Use the on-screen buttons (or Space/Enter for numbers and J/K for the sentence) to respond with just your mouse or keyboard.";
   trialContainer.appendChild(instructions);
   const grid = document.createElement("div");
   grid.className = "dual-grid";
@@ -695,6 +696,7 @@ function renderDualTrial(trial) {
   evenBtn.className = "option";
   evenBtn.textContent = "EVEN";
   numberControls.append(oddBtn, evenBtn);
+  numberArea.appendChild(numberControls);
 
   const pronounArea = document.createElement("div");
   pronounArea.className = "pronoun-stream";
