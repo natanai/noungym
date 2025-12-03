@@ -201,6 +201,13 @@ h1 {
   margin-bottom: 12px;
 }
 
+.helper {
+  margin: 0;
+  color: var(--helper);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
 label {
   display: flex;
   flex-direction: column;
@@ -222,6 +229,16 @@ select {
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
 }
 
+select,
+select.dropdown {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--helper) 50%),
+    linear-gradient(135deg, var(--helper) 50%, transparent 50%);
+  background-position: calc(100% - 16px) calc(50% + 2px), calc(100% - 12px) calc(50% + 2px);
+  background-size: 8px 8px, 8px 8px;
+  background-repeat: no-repeat;
+}
+
 label input:focus,
 textarea:focus,
 select:focus {
@@ -235,11 +252,6 @@ textarea {
   resize: vertical;
 }
 
-.helper {
-  color: var(--helper);
-  margin: 0;
-  font-size: 0.9rem;
-}
 
 .pronoun-grid {
   display: grid;
@@ -299,6 +311,21 @@ legend {
 
 .primary:hover {
   filter: brightness(1.05);
+}
+
+.ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.ghost:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .hidden {
@@ -431,6 +458,25 @@ button.option:focus {
   border: 1px solid var(--border);
   padding: 12px;
   border-radius: 10px;
+}
+
+.summary-grid.compact {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.saved-summary {
+  margin: 20px 0;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.saved-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .token-list {

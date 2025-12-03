@@ -77,11 +77,13 @@
               </div>
               <div class="form-group">
                 <label for="extinctionPreset">Pronouns to extinguish</label>
-                <select id="extinctionPreset" name="extinctionPreset"></select>
+                <select id="extinctionPreset" name="extinctionPreset" multiple></select>
+                <p class="helper">Pick one or more sets to phase out. Combine a preset with custom entries for mixed traps.</p>
               </div>
               <div class="form-group">
                 <label for="deadname">Deadname (optional, used in traps)</label>
                 <input id="deadname" name="deadname" type="text" placeholder="former name" />
+                <p class="helper">Leave blank to skip name-based traps. When filled, traps focus on pronoun accuracy even if the old name appears.</p>
               </div>
 
               <fieldset class="form-group hidden" id="extinction-custom-fields">
@@ -97,10 +99,10 @@
 
               <fieldset class="form-group">
                 <legend>Test Styles</legend>
-                <label><input type="checkbox" name="testStyleMapping" checked /> Quick Mapping</label>
-                <label><input type="checkbox" name="testStyleExtinction" checked /> Extinction</label>
-                <label><input type="checkbox" name="testStyleDual" /> Dual-Task</label>
-                <label><input type="checkbox" name="testStyleEditing" /> Sentence Editing</label>
+                <label><input type="checkbox" name="testStyleMapping" checked /> Quick Mapping <span class="helper">Choose the right pronoun for a blank.</span></label>
+                <label><input type="checkbox" name="testStyleExtinction" checked /> Extinction <span class="helper">Mark sentences that use old pronouns as incorrect.</span></label>
+                <label><input type="checkbox" name="testStyleDual" /> Dual-Task <span class="helper">Judge numbers (odd/even) while deciding if sentences are correct.</span></label>
+                <label><input type="checkbox" name="testStyleEditing" /> Sentence Editing <span class="helper">Tap the wrong pronoun, swap it, then continue.</span></label>
               </fieldset>
 
               <div class="form-group">
@@ -141,6 +143,16 @@
       <div class="card">
         <h2>Session Summary</h2>
         <div id="summary-stats" class="summary-grid"></div>
+        <div id="saved-summary" class="saved-summary hidden">
+          <div class="saved-summary-header">
+            <div>
+              <p class="label">Previous session (saved)</p>
+              <p class="helper" id="saved-summary-meta"></p>
+            </div>
+            <button id="clear-summary-btn" class="ghost">Clear saved</button>
+          </div>
+          <div id="saved-summary-grid" class="summary-grid compact"></div>
+        </div>
         <button id="restart-btn" class="primary">Start New Session</button>
       </div>
     </section>
