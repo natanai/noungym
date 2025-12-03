@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Noun Gym</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="orb orb-one"></div>
+  <div class="orb orb-two"></div>
+  <div class="gridlines"></div>
+
+  <div class="page-shell">
+    <header class="app-header card hero">
+      <div class="brand-mark">
+        <span class="brand-icon">☆</span>
+        <div>
+          <p class="eyebrow">Practice Lab</p>
+          <h1>Noun Gym</h1>
+        </div>
+      </div>
+      <div class="hero-copy">
+        <p class="subtitle">Pronoun drills with a calm, focused layout.</p>
+      </div>
+    </header>
+
+    <main>
+    <!-- Setup Screen -->
+    <section id="setup-screen">
+      <div class="content-grid">
+        <form id="setup-form" class="card">
+          <div class="card-header">
+            <div>
+              <p class="eyebrow">Session Setup</p>
+              <h2>Personalize the drills</h2>
+            </div>
+          </div>
+
+          <div class="panel-grid">
+            <div class="panel">
+              <div class="panel-header">
+                <h3>Target identity</h3>
+              </div>
+
+              <div class="form-group">
+                <label for="targetName">Name</label>
+                <input id="targetName" name="targetName" type="text" placeholder="Alex" required />
+              </div>
+
+              <div class="form-group">
+                <label for="pronounPreset">Preferred pronoun module</label>
+                <select id="pronounPreset" name="pronounPreset"></select>
+              </div>
+
+              <fieldset class="form-group">
+                <legend>Pronouns</legend>
+                <div class="pronoun-grid">
+                  <label>Subject<input name="subject" type="text" placeholder="they" required /></label>
+                  <label>Object<input name="object" type="text" placeholder="them" required /></label>
+                  <label>Possessive Adj<input name="possAdj" type="text" placeholder="their" required /></label>
+                  <label>Possessive Pron<input name="possPron" type="text" placeholder="theirs" required /></label>
+                  <label>Reflexive<input name="reflexive" type="text" placeholder="themself" required /></label>
+                </div>
+              </fieldset>
+
+              <fieldset class="form-group">
+                <legend>Grammar Usage</legend>
+                <label class="radio"><input type="radio" name="verbGrammar" value="plural" checked />Plural verbs</label>
+                <label class="radio"><input type="radio" name="verbGrammar" value="singular" />Singular verbs</label>
+              </fieldset>
+            </div>
+
+            <div class="panel">
+              <div class="panel-header">
+                <h3>Phase-out focus</h3>
+              </div>
+              <div class="form-group">
+                <label for="extinctionPreset">Pronouns to extinguish</label>
+                <select id="extinctionPreset" name="extinctionPreset"></select>
+              </div>
+              <div class="form-group">
+                <label for="deadname">Deadname (optional, used in traps)</label>
+                <input id="deadname" name="deadname" type="text" placeholder="former name" />
+              </div>
+
+              <fieldset class="form-group hidden" id="extinction-custom-fields">
+                <legend>Custom phase-out pronouns</legend>
+                <div class="pronoun-grid">
+                  <label>Subject<input name="extinctionSubject" type="text" placeholder="he" /></label>
+                  <label>Object<input name="extinctionObject" type="text" placeholder="him" /></label>
+                  <label>Possessive Adj<input name="extinctionPossAdj" type="text" placeholder="his" /></label>
+                  <label>Possessive Pron<input name="extinctionPossPron" type="text" placeholder="his" /></label>
+                  <label>Reflexive<input name="extinctionReflexive" type="text" placeholder="himself" /></label>
+                </div>
+              </fieldset>
+
+              <fieldset class="form-group">
+                <legend>Test Styles</legend>
+                <label><input type="checkbox" name="testStyleMapping" checked /> Quick Mapping</label>
+                <label><input type="checkbox" name="testStyleExtinction" checked /> Extinction</label>
+                <label><input type="checkbox" name="testStyleDual" /> Dual-Task</label>
+                <label><input type="checkbox" name="testStyleEditing" /> Sentence Editing</label>
+              </fieldset>
+
+              <div class="form-group">
+                <label for="sessionLength">Session Length</label>
+                <select id="sessionLength" name="sessionLength">
+                  <option value="30">Short (30s)</option>
+                  <option value="60">Medium (60s)</option>
+                  <option value="90">Long (90s)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="primary">Start Practice</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Test Runner Screen -->
+    <section id="test-screen" class="hidden">
+      <div class="card">
+        <header class="test-header">
+          <div>
+            <p class="label">Practicing</p>
+            <h2 id="practice-name"></h2>
+          </div>
+          <div class="counter" id="trial-counter"></div>
+        </header>
+        <div id="trial-container" class="trial-container"></div>
+        <footer class="test-footer">Use the on-screen buttons to respond</footer>
+      </div>
+    </section>
+
+    <!-- Summary Screen -->
+    <section id="summary-screen" class="hidden">
+      <div class="card">
+        <h2>Session Summary</h2>
+        <div id="summary-stats" class="summary-grid"></div>
+        <button id="restart-btn" class="primary">Start New Session</button>
+      </div>
+    </section>
+    </main>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
