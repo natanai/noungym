@@ -178,11 +178,20 @@ function testDuplicateLeadCleanup() {
     "Duplicate leading phrase should be collapsed");
 }
 
+function testResolveGrammarHintDoesNotForceSingularPronouns() {
+  const pluralWithOverride = resolveGrammar("they", "plural", "name");
+  assert(pluralWithOverride === "plural", "Explicit plural grammar should override name hint");
+
+  const pluralByPronoun = resolveGrammar("they", undefined, "name");
+  assert(pluralByPronoun === "plural", "They/them should stay plural even when hinted as a name");
+}
+
 function run() {
   testGrammarAcrossTemplates();
   testMappingOptions();
   testEditingVerbGrammarHint();
   testDuplicateLeadCleanup();
+  testResolveGrammarHintDoesNotForceSingularPronouns();
   console.log("All tests passed.");
 }
 

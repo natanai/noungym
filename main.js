@@ -303,10 +303,11 @@ function toggleExtinctionCustomFields(show) {
   extinctionCustomFields.classList.toggle("hidden", !show);
 }
 
+const pluralSubjectPronouns = ["they", "we", "you", "y'all", "yall", "ya'll"];
+
 function inferGrammarFromPronoun(pronoun) {
   const p = (pronoun || "").toLowerCase();
-  const pluralSubjects = ["they", "we", "you", "y'all", "yall", "ya'll"];
-  return pluralSubjects.includes(p) ? "plural" : "singular";
+  return pluralSubjectPronouns.includes(p) ? "plural" : "singular";
 }
 
 const grammarLexicon = {
@@ -353,14 +354,15 @@ const grammarLexicon = {
 };
 function resolveGrammar(subject, overrideGrammar, hint) {
   const normalized = (subject || "").trim().toLowerCase();
-  // Force singular for names when explicitly hinted
-  if (hint === "name") {
-    return "singular";
-  }
   // Respect explicit grammar overrides from the setup
   if (overrideGrammar) return overrideGrammar;
+  // Force singular for names when explicitly hinted
+  if (hint === "name" && !pluralSubjectPronouns.includes(normalized)) {
+    return "singular";
+  }
   // Default they/them to plural when no override is present
-  if (normalized === "they" || normalized === "them") return "plural";
+  if (normalized === "they" || normalized === "them" || pluralSubjectPronouns.includes(normalized))
+    return "plural";
   // Fall back to grammar inferred from the subject
   return inferGrammarFromPronoun(normalized);
 }
@@ -913,15 +915,20 @@ function generateEditingTrials(limitCount = 35) {
   const patterns = shuffle(getPatternsForModeAndRole("editing"));
   if (!patterns.length) return [];
 
+  // Always include the badge spelling check so sessions cover the singular grammar hint case.
+  const requiredPatterns = patterns.filter((p) => p.id === "badge_spelling");
+  const optionalPatterns = patterns.filter((p) => p.id !== "badge_spelling");
+  const prioritizedPatterns = [...requiredPatterns, ...optionalPatterns];
+
   const trials = [];
   let idx = 0;
 
-  while (trials.length < limitCount && patterns.length) {
-    const pattern = patterns[idx % patterns.length];
+  while (trials.length < limitCount && prioritizedPatterns.length) {
+    const pattern = prioritizedPatterns[idx % prioritizedPatterns.length];
     const roles = [...(pattern.pronounRolesUsed || [])];
     if (!roles.length) {
       idx += 1;
-      if (idx > patterns.length * 2) break;
+      if (idx > prioritizedPatterns.length * 2) break;
       continue;
     }
 
