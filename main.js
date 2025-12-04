@@ -146,6 +146,8 @@ const appState = {
   setup: {
     targetName: "",
     deadname: "",
+    relation: "",
+    oldRelation: "",
     pronouns: {
       subject: "",
       object: "",
@@ -194,6 +196,8 @@ const cacheClearFooter = doc ? doc.getElementById("cache-clear-footer") : null;
 const clearStorageLink = doc ? doc.getElementById("clear-storage-link") : null;
 const shareSetupBtn = doc ? doc.getElementById("share-setup-btn") : null;
 const targetNameInput = doc ? doc.getElementById("targetName") : null;
+const relationInput = doc ? doc.getElementById("relation") : null;
+const oldRelationInput = doc ? doc.getElementById("oldRelation") : null;
 const pronounPresetSelect = doc ? doc.getElementById("pronounPreset") : null;
 const extinctionPresetSelect = doc ? doc.getElementById("extinctionPreset") : null;
 const extinctionCustomFields = doc ? doc.getElementById("extinction-custom-fields") : { classList: { toggle: () => {} } };
@@ -368,6 +372,12 @@ function resolveGrammar(subject, overrideGrammar, hint) {
 
 const languageTokenRegex = /\{([^}]+)\}/g;
 
+function makePossessive(term = "") {
+  const trimmed = (term || "").trim();
+  if (!trimmed) return "";
+  return trimmed.endsWith("s") ? `${trimmed}'` : `${trimmed}'s`;
+}
+
 function conjugateVerb(base, grammarSet) {
   if (!base) return base;
   if (grammarSet[base] !== undefined) return grammarSet[base];
@@ -379,6 +389,9 @@ function applyLanguageRules(template, overrides = {}) {
   const { verbGrammar } = appState.setup;
   const targetName = overrides.name ?? overrides.targetName ?? appState.setup.targetName;
   const deadname = overrides.deadname ?? overrides.deadName ?? appState.setup.deadname;
+  const relation = overrides.relation ?? overrides.relationship ?? appState.setup.relation;
+  const oldRelation =
+    overrides.oldRelation ?? overrides.previousRelation ?? appState.setup.oldRelation;
   const pronouns = overrides.pronouns || overrides.pronounSet || appState.setup.pronouns;
   const grammar = overrides.grammar || verbGrammar || inferGrammarFromPronoun(pronouns.subject);
   const subject = (pronouns.subject || "").toLowerCase();
@@ -387,9 +400,14 @@ function applyLanguageRules(template, overrides = {}) {
   const context = {
     targetName,
     deadname: deadname || "their old name",
+    relation: (relation || "").trim() || "family member",
+    oldRelation: (oldRelation || "").trim() || "old term",
     pronouns,
     grammar
   };
+
+  context.relationPoss = makePossessive(context.relation);
+  context.oldRelationPoss = makePossessive(context.oldRelation);
 
   const grammarTokens = grammarLexicon[grammarForPronouns] || grammarLexicon.plural;
 
@@ -408,6 +426,10 @@ function applyLanguageRules(template, overrides = {}) {
 
     if (token === "name") return context.targetName;
     if (token === "deadname") return context.deadname;
+    if (token === "relation") return context.relation;
+    if (token === "oldrelation") return context.oldRelation;
+    if (token === "relationposs") return context.relationPoss;
+    if (token === "oldrelationposs") return context.oldRelationPoss;
     if (token in pronounTokens) return pronounTokens[token] || "";
 
     const resolvedGrammar = resolveGrammar(context.pronouns.subject, grammar, hint);
@@ -470,6 +492,8 @@ function collectSetupPayload(formData) {
   return {
     targetName: (formData.get("targetName") || "").trim(),
     deadname: (formData.get("deadname") || "").trim(),
+    relation: (formData.get("relation") || "").trim(),
+    oldRelation: (formData.get("oldRelation") || "").trim(),
     pronounPreset: formData.get("pronounPreset") || "",
     pronouns: {
       subject: (formData.get("subject") || "").trim(),
@@ -502,6 +526,8 @@ function encodeSetupPayload(payload) {
 
   if (payload.targetName) params.set("name", payload.targetName);
   if (payload.deadname) params.set("dead", payload.deadname);
+  if (payload.relation) params.set("rel", payload.relation);
+  if (payload.oldRelation) params.set("oldrel", payload.oldRelation);
   if (payload.pronounPreset) params.set("preset", payload.pronounPreset);
   params.set("grammar", payload.verbGrammar || "plural");
 
@@ -548,6 +574,8 @@ function decodeSetupPayload(search) {
   return {
     targetName: params.get("name") || "",
     deadname: params.get("dead") || "",
+    relation: params.get("rel") || "",
+    oldRelation: params.get("oldrel") || "",
     pronounPreset: params.get("preset") || "",
     pronouns: {
       subject: params.get("pro_subject") || "",
@@ -575,6 +603,8 @@ function applySetupPayloadToForm(payload) {
 
   if (targetNameInput) targetNameInput.value = payload.targetName || "";
   if (deadnameInput) deadnameInput.value = payload.deadname || "";
+  if (relationInput) relationInput.value = payload.relation || "";
+  if (oldRelationInput) oldRelationInput.value = payload.oldRelation || "";
 
   if (pronounPresetSelect && payload.pronounPreset) {
     pronounPresetSelect.value = payload.pronounPreset;
@@ -641,6 +671,8 @@ function hydrateSetupFromUrl() {
 function parseSetup(formData) {
   appState.setup.targetName = formData.get("targetName").trim();
   appState.setup.deadname = formData.get("deadname").trim();
+  appState.setup.relation = (formData.get("relation") || "").trim();
+  appState.setup.oldRelation = (formData.get("oldRelation") || "").trim();
   appState.setup.pronouns = {
     subject: formData.get("subject").trim(),
     object: formData.get("object").trim(),
@@ -1271,6 +1303,8 @@ function renderDualTrial(trial) {
   );
   const cuePronouns = cueSources.flatMap((set) => Object.values(set || []));
   if (appState.setup.deadname) cuePronouns.push(appState.setup.deadname);
+  if (appState.setup.oldRelation) cuePronouns.push(appState.setup.oldRelation);
+  if (appState.setup.relation) cuePronouns.push(appState.setup.relation);
   if (trapSet) cuePronouns.push(...Object.values(trapSet));
 
   const scheduleCue = () => {

@@ -24,6 +24,14 @@ const SLOT_BANKS = {
     "When the sign-in sheet went around, ",
     "While editing the spreadsheet, "
   ],
+  context_family: [
+    "At the family dinner, ",
+    "During the reunion, ",
+    "On the call with relatives, ",
+    "When grandparents visited, ",
+    "While chatting with siblings, ",
+    "Before the holiday gathering, "
+  ],
   activity_support: [
     "sharing pronouns",
     "checking the roster for names",
@@ -143,6 +151,132 @@ const BASE_SENTENCE_PATTERNS = [
     pronounRolesUsed: ["reflexive"],
     modes: ["mapping", "extinction", "editing", "dual"],
     difficulty: 1
+  },
+  {
+    id: "family_introduce_relation",
+    template:
+      "[[context_family]]I introduced {name} as my {relation} and shared that {subject} {be} using these pronouns now.",
+    slots: ["context_family"],
+    pronounRolesUsed: ["subject"],
+    modes: ["mapping", "extinction", "editing", "dual"],
+    difficulty: 2
+  },
+  {
+    id: "family_correct_old_term",
+    template:
+      "[[context_family]]When someone slipped and said {oldrelation}, I corrected it to {relation} and noted {subject} {have} updated pronouns.",
+    slots: ["context_family"],
+    pronounRolesUsed: ["subject"],
+    modes: ["mapping", "extinction", "editing", "dual"],
+    difficulty: 3
+  },
+  {
+    id: "family_label_pronouns",
+    template:
+      "[[context_family]]I wrote 'my {relation}' next to {name} so relatives see {possAdj} correct pronouns.",
+    slots: ["context_family"],
+    pronounRolesUsed: ["possAdj"],
+    modes: ["mapping", "extinction", "editing", "dual"],
+    difficulty: 2
+  },
+  {
+    id: "family_group_text",
+    template:
+      "[[context_family]]In the family chat, I told everyone our {relation} goes by {name} now and that {subject} {be} using these pronouns.",
+    slots: ["context_family"],
+    pronounRolesUsed: ["subject"],
+    modes: ["mapping", "extinction", "editing", "dual"],
+    difficulty: 2
+  },
+  {
+    id: "family_caption_fix",
+    template:
+      "[[context_family]]When the album caption said {oldrelation}, I edited it to 'my {relation}' and circled {possAdj} pronouns.",
+    slots: ["context_family"],
+    pronounRolesUsed: ["possAdj"],
+    modes: ["mapping", "extinction", "editing", "dual"],
+    difficulty: 3
+  },
+  {
+    id: "family_calendar_note",
+    template:
+      "[[context_family]]I set a reminder to say {relation} instead of {oldrelation} before talking with {name} so I address {object} correctly.",
+    slots: ["context_family"],
+    pronounRolesUsed: ["object"],
+    modes: ["mapping", "extinction", "editing", "dual"],
+    difficulty: 2
+  },
+  {
+    id: "family_form_update",
+    template:
+      "[[context_family]]While filling out forms, I selected {relation} and double-checked that the staff marked {possAdj} pronouns.",
+    slots: ["context_family"],
+    pronounRolesUsed: ["possAdj"],
+    modes: ["mapping", "extinction", "editing", "dual"],
+    difficulty: 2
+  },
+  {
+    id: "family_model_phrase",
+    template:
+      "[[context_family]]I practiced saying 'This is my {relation},' then repeated {subject} after the kids so they heard the right pronouns.",
+    slots: ["context_family"],
+    pronounRolesUsed: ["subject"],
+    modes: ["mapping", "extinction", "editing", "dual"],
+    difficulty: 3
+  },
+  {
+    id: "family_thank_you",
+    template:
+      "[[context_family]]When thanking the team, I said our {relation} {name} {be} grateful and asked them to address {object} with the right pronouns.",
+    slots: ["context_family"],
+    pronounRolesUsed: ["subject", "object"],
+    modes: ["mapping", "extinction", "editing", "dual"],
+    difficulty: 3
+  },
+  {
+    id: "family_sticky_note",
+    template:
+      "[[context_family]]I keep a sticky note: \"Say {relation}, not {oldrelation}, and use {possAdj} pronouns for {name}.\"",
+    slots: ["context_family"],
+    pronounRolesUsed: ["possAdj"],
+    modes: ["mapping", "extinction", "editing", "dual"],
+    difficulty: 2
+  },
+  {
+    id: "family_relation_clarify",
+    template:
+      "[[context_family]]{name} reminded us that {subject} {be} the {relation}, not the {oldrelation}, and we practiced saying it together.",
+    slots: ["context_family"],
+    pronounRolesUsed: ["subject"],
+    modes: ["mapping", "extinction", "editing", "dual"],
+    difficulty: 3
+  },
+  {
+    id: "family_badge_table",
+    template:
+      "[[context_family]]At the reunion badge table, I made sure the label read {relationposs} pronouns belong to {name} and match {possAdj} record.",
+    slots: ["context_family"],
+    pronounRolesUsed: ["possAdj"],
+    modes: ["mapping", "extinction", "editing", "dual"],
+    difficulty: 3
+  },
+  {
+    id: "family_chart_note",
+    template:
+      "[[context_family]]Before the appointment, I described {name} as my {relation} and noted {possAdj} pronouns on the chart.",
+    slots: ["context_family"],
+    pronounRolesUsed: ["possAdj"],
+    modes: ["mapping", "extinction", "editing", "dual"],
+    difficulty: 2
+  },
+  {
+    id: "family_story_share",
+    template:
+      "[[context_family]]While sharing stories, I called {name} my {relation} and used {possAdj} pronouns so cousins could practice.",
+    slots: ["context_family"],
+    pronounRolesUsed: ["possAdj"],
+    modes: ["mapping", "extinction", "editing", "dual"],
+    difficulty: 2
   }
 ];
 
