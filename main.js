@@ -899,7 +899,7 @@ const editingRecipes = [
     limit: 40
   },
   {
-    template: "At the fundraiser {name} organized, the team thanked {object} for sharing {possAdj} story.",
+    template: "During the fundraiser {name} organized, the team thanked {object} for sharing {possAdj} story about the project.",
     wrongType: "object",
     limit: 40
   },
