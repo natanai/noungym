@@ -1062,11 +1062,13 @@ function renderDualTrial(trial) {
     timerStart = Date.now();
     timerDisplay.classList.remove("hidden");
     timerInterval = setInterval(() => {
-      const elapsedSeconds = Math.floor((Date.now() - timerStart) / 1000);
+      const elapsedMs = Date.now() - timerStart;
+      const elapsedSeconds = Math.floor(elapsedMs / 1000);
       const mins = String(Math.floor(elapsedSeconds / 60)).padStart(2, "0");
       const secs = String(elapsedSeconds % 60).padStart(2, "0");
-      timerDisplay.textContent = `Timer: ${mins}:${secs}`;
-    }, 200);
+      const millis = String(elapsedMs % 1000).padStart(3, "0");
+      timerDisplay.textContent = `Timer: ${mins}:${secs}.${millis}`;
+    }, 50);
   };
 
   const pronounTemplates = [
