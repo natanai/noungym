@@ -1187,7 +1187,7 @@ function flashFeedback(isCorrect) {
   trialContainer.classList.add(isCorrect ? "feedback-correct" : "feedback-incorrect");
   setTimeout(() => {
     trialContainer.classList.remove("feedback-correct", "feedback-incorrect");
-  }, 600);
+  }, 900);
 }
 
 function recordResult(type, correct, startTime, meta = {}) {
@@ -1197,21 +1197,29 @@ function recordResult(type, correct, startTime, meta = {}) {
 }
 
 function handleAnswer(correct, onAdvance, type, startTime, meta = {}) {
-  const lingering = trialContainer.querySelectorAll(".feedback-overlay");
+  const lingering = trialContainer.querySelectorAll(".feedback-overlay, .feedback-banner");
   lingering.forEach((node) => node.remove());
   flashFeedback(correct);
+  const banner = document.createElement("div");
+  banner.className = `feedback-banner ${correct ? "correct" : "incorrect"}`;
+  banner.setAttribute("role", "status");
+  banner.setAttribute("aria-live", "polite");
+  banner.innerHTML = `
+    <span class="feedback-icon">${correct ? "✓" : "!"}</span>
+    <span>${correct ? "Correct — keep going" : "Incorrect — pause & review"}</span>
+  `;
+  trialContainer.appendChild(banner);
   if (correct) {
     recordResult(type, true, startTime, meta);
-    onAdvance();
+    setTimeout(() => {
+      banner.remove();
+      onAdvance();
+    }, 900);
     return;
   }
   recordResult(type, false, startTime, meta);
-  const overlay = document.createElement("div");
-  overlay.className = "label feedback-overlay";
-  overlay.textContent = "Incorrect — pause & review";
-  trialContainer.appendChild(overlay);
   setTimeout(() => {
-    overlay.remove();
+    banner.remove();
     onAdvance();
   }, 1500);
 }
