@@ -1705,6 +1705,20 @@ function median(values = []) {
   return Number.isFinite(raw) ? raw : null;
 }
 
+function formatDuration(ms) {
+  if (!Number.isFinite(ms)) return "N/A";
+
+  const seconds = ms / 1000;
+  if (seconds >= 60) {
+    const minutes = seconds / 60;
+    const precision = minutes >= 10 ? 1 : 2;
+    return `${minutes.toFixed(precision)} min`;
+  }
+
+  const precision = seconds >= 10 ? 1 : 2;
+  return `${seconds.toFixed(precision)} s`;
+}
+
 function calculateStats(entries) {
   if (!entries.length)
     return {
@@ -1728,11 +1742,11 @@ function calculateStats(entries) {
 
   return {
     accuracy: `${accuracy}%`,
-    median: allMedian !== null ? `${allMedian} ms` : "N/A",
+    median: allMedian !== null ? formatDuration(allMedian) : "N/A",
     count: entries.length,
     medianValue: allMedian,
-    medianCorrect: correctMedian !== null ? `${correctMedian} ms` : "—",
-    medianIncorrect: incorrectMedian !== null ? `${incorrectMedian} ms` : "—",
+    medianCorrect: correctMedian !== null ? formatDuration(correctMedian) : "—",
+    medianIncorrect: incorrectMedian !== null ? formatDuration(incorrectMedian) : "—",
     medianCorrectValue: correctMedian,
     medianIncorrectValue: incorrectMedian
   };
@@ -1904,7 +1918,7 @@ function renderSavedSummary(saved) {
   Object.entries(saved.stats).forEach(([key, stats]) => {
     const card = document.createElement("div");
     card.className = "summary-card";
-    card.innerHTML = `<p class="label">${key}</p><p>Accuracy: ${stats.accuracy}</p><p>Median RT: ${stats.median}</p>`;
+    card.innerHTML = `<p class="label">${key}</p><p>Accuracy: ${stats.accuracy}</p><p>Typical response: ${stats.median}</p>`;
     savedSummaryGrid.appendChild(card);
   });
 }
@@ -1939,8 +1953,8 @@ function showSummary() {
     card.innerHTML = `
       <p class="label">${mode.label}</p>
       <p>Accuracy: ${stats.accuracy}</p>
-      <p>Median RT: ${stats.median}</p>
-      <p class="helper">Correct: ${stats.medianCorrect} • Incorrect: ${stats.medianIncorrect}</p>
+      <p>Typical response: ${stats.median}</p>
+      <p class="helper">Faster hits: ${stats.medianCorrect} • When unsure: ${stats.medianIncorrect}</p>
       <p class="helper">${trialNote}</p>
     `;
     summaryStats.appendChild(card);
@@ -1974,9 +1988,9 @@ function showSummary() {
     gapEntries.forEach(({ label, gap, stats }) => {
       const direction = gap >= 0 ? "slower" : "faster";
       const li = document.createElement("li");
-      li.innerHTML = `<strong>${label}</strong>: ${Math.abs(
+      li.innerHTML = `<strong>${label}</strong>: ${formatDuration(Math.abs(
         gap
-      )} ms ${direction} on errors <small>(Correct: ${stats.medianCorrect} • Incorrect: ${
+      ))} ${direction} on errors <small>(Correct: ${stats.medianCorrect} • Incorrect: ${
         stats.medianIncorrect
       })</small>`;
       list.appendChild(li);
@@ -2013,7 +2027,9 @@ function showSummary() {
     list.className = "stat-list";
     slowestGroups.forEach((group) => {
       const li = document.createElement("li");
-      li.innerHTML = `<strong>${group.label}</strong>: ${group.median} ms median <small>${group.errorRate}% error rate</small>`;
+      li.innerHTML = `<strong>${group.label}</strong>: ${formatDuration(
+        group.median
+      )} median <small>${group.errorRate}% error rate</small>`;
       list.appendChild(li);
     });
     slowCard.appendChild(list);
