@@ -175,6 +175,8 @@ const savedSummaryGrid = doc ? doc.getElementById("saved-summary-grid") : null;
 const savedSummaryMeta = doc ? doc.getElementById("saved-summary-meta") : null;
 const clearSummaryBtn = doc ? doc.getElementById("clear-summary-btn") : null;
 const endSessionBtn = doc ? doc.getElementById("end-session-btn") : null;
+const cacheClearFooter = doc ? doc.getElementById("cache-clear-footer") : null;
+const clearStorageLink = doc ? doc.getElementById("clear-storage-link") : null;
 const shareSetupBtn = doc ? doc.getElementById("share-setup-btn") : null;
 const targetNameInput = doc ? doc.getElementById("targetName") : null;
 const pronounPresetSelect = doc ? doc.getElementById("pronounPreset") : null;
@@ -1888,6 +1890,88 @@ function clearSavedSummary() {
   renderSavedSummary(null);
 }
 
+function detectPrivateMode() {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(false);
+      return;
+    }
+
+    const finish = (isPrivate) => resolve(Boolean(isPrivate));
+
+    if (window.webkitRequestFileSystem) {
+      window.webkitRequestFileSystem(
+        window.TEMPORARY,
+        1,
+        () => finish(false),
+        () => finish(true)
+      );
+      return;
+    }
+
+    if (navigator.storage && navigator.storage.estimate) {
+      navigator.storage
+        .estimate()
+        .then(({ quota }) => {
+          const isPrivate = typeof quota === "number" && quota > 0 && quota < 120000000;
+          finish(isPrivate);
+        })
+        .catch(() => finish(false));
+      return;
+    }
+
+    if (window.indexedDB && navigator.userAgent.includes("Firefox")) {
+      let resolved = false;
+      try {
+        const db = indexedDB.open("private-mode-check");
+        db.onerror = () => {
+          if (!resolved) finish(true);
+          resolved = true;
+        };
+        db.onsuccess = () => {
+          if (resolved) return;
+          resolved = true;
+          db.result.close();
+          indexedDB.deleteDatabase("private-mode-check");
+          finish(false);
+        };
+        return;
+      } catch (e) {
+        finish(true);
+        return;
+      }
+    }
+
+    finish(false);
+  });
+}
+
+async function clearCachesAndStorage() {
+  let cacheCleared = true;
+  let storageCleared = true;
+
+  try {
+    localStorage.clear();
+  } catch (e) {
+    storageCleared = false;
+  }
+
+  if ("caches" in window) {
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key)));
+    } catch (e) {
+      cacheCleared = false;
+    }
+  }
+
+  const message =
+    cacheCleared && storageCleared
+      ? "All local data cleared. Please reload to see the latest updates."
+      : "We couldn't clear everything automatically. Try reloading or clearing your browser data manually.";
+  alert(message);
+}
+
 function renderSavedSummary(saved) {
   if (!saved || !saved.stats || !savedSummarySection) {
     if (savedSummarySection) {
@@ -2017,6 +2101,28 @@ if (restartBtn) restartBtn.addEventListener("click", resetApp);
 if (clearSummaryBtn) {
   clearSummaryBtn.addEventListener("click", clearSavedSummary);
 }
+
+async function setupCacheClearLink() {
+  if (!cacheClearFooter || !clearStorageLink || typeof window === "undefined") return;
+
+  try {
+    const isPrivate = await detectPrivateMode();
+    if (isPrivate) return;
+
+    cacheClearFooter.classList.remove("hidden");
+    clearStorageLink.addEventListener("click", async () => {
+      clearStorageLink.disabled = true;
+      clearStorageLink.textContent = "Clearing...";
+      await clearCachesAndStorage();
+      clearStorageLink.disabled = false;
+      clearStorageLink.textContent = "Clear all cache and localStorage";
+    });
+  } catch (e) {
+    // ignore detection errors
+  }
+}
+
+setupCacheClearLink();
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
