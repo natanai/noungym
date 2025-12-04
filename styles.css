@@ -835,6 +835,29 @@ button.option:disabled {
   border-radius: 10px;
 }
 
+.stat-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-list li {
+  background: #fff;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  line-height: 1.4;
+}
+
+.stat-list small {
+  display: block;
+  color: var(--helper);
+  margin-top: 4px;
+}
+
 .summary-grid.compact {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }

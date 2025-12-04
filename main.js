@@ -1162,7 +1162,7 @@ function renderMappingTrial(trial) {
     btn.className = "option";
     btn.textContent = opt;
     btn.addEventListener("click", () =>
-      handleAnswer(opt === trial.correct, nextTrial, "mapping", start)
+      handleAnswer(opt === trial.correct, nextTrial, "mapping", start, { role: trial.role })
     );
     optionsWrap.appendChild(btn);
   });
@@ -1190,14 +1190,20 @@ function renderExtinctionTrial(trial) {
   okBtn.className = "option";
   okBtn.textContent = "Correct";
   okBtn.addEventListener("click", () =>
-    handleAnswer(trial.isCorrect, nextTrial, "extinction", start)
+    handleAnswer(trial.isCorrect, nextTrial, "extinction", start, {
+      mode: trial.mode,
+      expected: trial.isCorrect
+    })
   );
 
   const wrongBtn = document.createElement("button");
   wrongBtn.className = "option";
   wrongBtn.textContent = "Incorrect";
   wrongBtn.addEventListener("click", () =>
-    handleAnswer(!trial.isCorrect, nextTrial, "extinction", start)
+    handleAnswer(!trial.isCorrect, nextTrial, "extinction", start, {
+      mode: trial.mode,
+      expected: trial.isCorrect
+    })
   );
 
   buttons.appendChild(okBtn);
@@ -1676,7 +1682,10 @@ function renderEditingTrial(trial) {
   continueBtn.addEventListener("click", () => {
     const ready = updateReadyState();
     if (!ready) return;
-    handleAnswer(true, nextTrial, "editing", start);
+    handleAnswer(true, nextTrial, "editing", start, {
+      wrongType: trial.wrongType,
+      patternId: trial.patternId
+    });
   });
 
   refreshVerbRequirements();
@@ -1717,15 +1726,86 @@ function nextTrial() {
   renderTrial();
 }
 
+function median(values = []) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const raw =
+    sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+  return Number.isFinite(raw) ? raw : null;
+}
+
 function calculateStats(entries) {
-  if (!entries.length) return { accuracy: "N/A", median: "N/A" };
-  const accuracy = Math.round(
-    (entries.filter((e) => e.correct).length / entries.length) * 100
-  );
-  const rts = entries.map((e) => e.rt).sort((a, b) => a - b);
-  const mid = Math.floor(rts.length / 2);
-  const median = rts.length % 2 ? rts[mid] : Math.round((rts[mid - 1] + rts[mid]) / 2);
-  return { accuracy: `${accuracy}%`, median: `${median} ms` };
+  if (!entries.length)
+    return {
+      accuracy: "N/A",
+      median: "N/A",
+      count: 0,
+      medianValue: null,
+      medianCorrect: "—",
+      medianIncorrect: "—",
+      medianCorrectValue: null,
+    medianIncorrectValue: null
+    };
+
+  const correctEntries = entries.filter((e) => e.correct);
+  const incorrectEntries = entries.filter((e) => !e.correct);
+  const accuracy = Math.round((correctEntries.length / entries.length) * 100);
+
+  const allMedian = median(entries.map((e) => e.rt));
+  const correctMedian = median(correctEntries.map((e) => e.rt));
+  const incorrectMedian = median(incorrectEntries.map((e) => e.rt));
+
+  return {
+    accuracy: `${accuracy}%`,
+    median: allMedian !== null ? `${allMedian} ms` : "N/A",
+    count: entries.length,
+    medianValue: allMedian,
+    medianCorrect: correctMedian !== null ? `${correctMedian} ms` : "—",
+    medianIncorrect: incorrectMedian !== null ? `${incorrectMedian} ms` : "—",
+    medianCorrectValue: correctMedian,
+    medianIncorrectValue: incorrectMedian
+  };
+}
+
+function roleLabel(key) {
+  const labels = {
+    subject: "Subject pronouns",
+    object: "Object pronouns",
+    possAdj: "Possessive adjectives",
+    possPron: "Possessive pronouns",
+    reflexive: "Reflexive pronouns",
+    flag: "Flag review",
+    gng: "Go/No-Go checks",
+    number: "Number stream",
+    pronoun: "Pronoun judgments"
+  };
+
+  return labels[key] || (key ? key.toString() : "Pronoun swap");
+}
+
+function summarizeLatencyByGroup(entries = [], selector, labelFactory) {
+  const buckets = entries.reduce((acc, entry) => {
+    const key = selector(entry) || "other";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(entry);
+    return acc;
+  }, {});
+
+  return Object.entries(buckets)
+    .map(([key, items]) => {
+      const medianValue = median(items.map((e) => e.rt));
+      if (medianValue === null) return null;
+      const errors = items.filter((e) => !e.correct).length;
+      const errorRate = items.length ? Math.round((errors / items.length) * 100) : 0;
+      return {
+        label: typeof labelFactory === "function" ? labelFactory(key, items.length) : key,
+        median: medianValue,
+        count: items.length,
+        errorRate
+      };
+    })
+    .filter(Boolean);
 }
 
 function loadSavedSummary() {
@@ -1873,14 +1953,102 @@ function showSummary() {
     { key: "editing", label: "Sentence Editing" }
   ];
   const savedStats = {};
+  const statsByMode = {};
+
   modes.forEach((mode) => {
-    const stats = calculateStats(appState.results[mode.key] || []);
+    const entries = appState.results[mode.key] || [];
+    const stats = calculateStats(entries);
+    statsByMode[mode.key] = stats;
+
+    const trialNote = stats.count
+      ? `${stats.count} trial${stats.count === 1 ? "" : "s"}`
+      : "No trials recorded";
+
     const card = document.createElement("div");
     card.className = "summary-card";
-    card.innerHTML = `<p class="label">${mode.label}</p><p>Accuracy: ${stats.accuracy}</p><p>Median RT: ${stats.median}</p>`;
+    card.innerHTML = `
+      <p class="label">${mode.label}</p>
+      <p>Accuracy: ${stats.accuracy}</p>
+      <p>Median RT: ${stats.median}</p>
+      <p class="helper">Correct: ${stats.medianCorrect} • Incorrect: ${stats.medianIncorrect}</p>
+      <p class="helper">${trialNote}</p>
+    `;
     summaryStats.appendChild(card);
-    savedStats[mode.label] = stats;
+    savedStats[mode.label] = { accuracy: stats.accuracy, median: stats.median };
   });
+
+  const gapEntries = modes
+    .map(({ key, label }) => {
+      const stats = statsByMode[key];
+      if (!stats || stats.medianCorrectValue === null || stats.medianIncorrectValue === null) {
+        return null;
+      }
+      return {
+        label,
+        gap: stats.medianIncorrectValue - stats.medianCorrectValue,
+        stats
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap));
+
+  if (gapEntries.length) {
+    const gapCard = document.createElement("div");
+    gapCard.className = "summary-card";
+    gapCard.innerHTML = `
+      <p class="label">Error latency gaps</p>
+      <p class="helper">How much slower or faster mistakes were compared to correct answers.</p>
+    `;
+    const list = document.createElement("ul");
+    list.className = "stat-list";
+    gapEntries.forEach(({ label, gap, stats }) => {
+      const direction = gap >= 0 ? "slower" : "faster";
+      const li = document.createElement("li");
+      li.innerHTML = `<strong>${label}</strong>: ${Math.abs(
+        gap
+      )} ms ${direction} on errors <small>(Correct: ${stats.medianCorrect} • Incorrect: ${
+        stats.medianIncorrect
+      })</small>`;
+      list.appendChild(li);
+    });
+    gapCard.appendChild(list);
+    summaryStats.appendChild(gapCard);
+  }
+
+  const latencyGroups = [
+    ...summarizeLatencyByGroup(appState.results.mapping, (entry) => entry.role, (key, count) =>
+      `Quick Mapping • ${roleLabel(key)} (${count} trials)`
+    ),
+    ...summarizeLatencyByGroup(appState.results.extinction, (entry) => entry.mode, (key, count) =>
+      `Extinction • ${roleLabel(key)} (${count} trials)`
+    ),
+    ...summarizeLatencyByGroup(appState.results.dual, (entry) => entry.task, (key, count) =>
+      `Dual task • ${roleLabel(key)} (${count} trials)`
+    ),
+    ...summarizeLatencyByGroup(appState.results.editing, (entry) => entry.wrongType, (key, count) =>
+      `Sentence Editing • ${roleLabel(key)} (${count} trials)`
+    )
+  ].filter((group) => group && Number.isFinite(group.median));
+
+  const slowestGroups = latencyGroups.sort((a, b) => b.median - a.median).slice(0, 3);
+
+  if (slowestGroups.length) {
+    const slowCard = document.createElement("div");
+    slowCard.className = "summary-card";
+    slowCard.innerHTML = `
+      <p class="label">Where time stretched</p>
+      <p class="helper">Median response times for the slowest areas (implicit-bias style readout).</p>
+    `;
+    const list = document.createElement("ul");
+    list.className = "stat-list";
+    slowestGroups.forEach((group) => {
+      const li = document.createElement("li");
+      li.innerHTML = `<strong>${group.label}</strong>: ${group.median} ms median <small>${group.errorRate}% error rate</small>`;
+      list.appendChild(li);
+    });
+    slowCard.appendChild(list);
+    summaryStats.appendChild(slowCard);
+  }
 
   storeSavedSummary({ timestamp: Date.now(), stats: savedStats });
 }
