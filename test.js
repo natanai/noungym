@@ -154,7 +154,10 @@ function testEditingVerbGrammarHint() {
     verbGrammar: "plural",
     extinctionPronounSets: []
   };
-  const trials = generateEditingTrials(12);
+  const editingPatternCount = BASE_SENTENCE_PATTERNS.filter((p) =>
+    (p.modes || []).includes("editing")
+  ).length;
+  const trials = generateEditingTrials(editingPatternCount);
   const badgeTrial = trials.find((trial) => trial.text.includes("name was spelled"));
   assert(badgeTrial, "Expected badge spelling trial to be generated");
   assert(badgeTrial.grammar === "singular", "Badge spelling grammar should be singular");
@@ -178,11 +181,44 @@ function testDuplicateLeadCleanup() {
     "Duplicate leading phrase should be collapsed");
 }
 
+function testDoubleIntroCollapse() {
+  const pattern = BASE_SENTENCE_PATTERNS.find((p) => p.id === "family_badge_table");
+  assert(pattern, "Expected reunion badge table pattern");
+
+  const originalRandom = Math.random;
+  Math.random = () => 0; // always pick the first context lead
+
+  appState.setup = {
+    ...appState.setup,
+    targetName: "Nat",
+    relation: "cousin",
+    oldRelation: "old term",
+    pronouns: pronounSets[0].pronouns,
+    verbGrammar: "plural",
+    extinctionPronounSets: []
+  };
+
+  const sentence = buildSentenceFromPattern(pattern, pronounSets[0].pronouns, {
+    name: "Nat",
+    grammar: "plural",
+    relation: "cousin",
+    oldRelation: "old term"
+  });
+
+  Math.random = originalRandom;
+
+  assert(
+    sentence.startsWith("At the reunion badge table,"),
+    `Intro contexts should be collapsed to one lead: ${sentence}`
+  );
+}
+
 function run() {
   testGrammarAcrossTemplates();
   testMappingOptions();
   testEditingVerbGrammarHint();
   testDuplicateLeadCleanup();
+  testDoubleIntroCollapse();
   console.log("All tests passed.");
 }
 
