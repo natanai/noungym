@@ -639,7 +639,7 @@ const extinctionRecipes = [
     limit: 45
   },
   {
-    template: "After the meeting, {subject} thanked {object} and reminded {reflexive} to rest.",
+    template: "After the meeting, {subject} thanked everyone and reminded {reflexive} to rest.",
     limit: 45
   },
   {
@@ -695,7 +695,7 @@ const editingRecipes = [
     limit: 40
   },
   {
-    template: "{name} organized the fundraiser and invited {object} to share {possAdj} story.",
+    template: "At the fundraiser {name} organized, the team thanked {object} for sharing {possAdj} story.",
     wrongType: "object",
     limit: 40
   },
@@ -1132,7 +1132,7 @@ function renderDualTrial(trial) {
   const pronounTemplates = [
     "{subject} {have} finished {possAdj} report.",
     "I reminded {object} that the seat was {possPron}.",
-    "{name} coached {object} to pace {reflexive}.",
+    "{subject} coached {reflexive} to pace carefully.",
     "Please send {possAdj} file so {subject} can review.",
     "{name} said {subject} {were} proud of {reflexive}."
   ];
