@@ -714,6 +714,31 @@ button.option:disabled {
   padding-top: 12px;
 }
 
+.dual-progress {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 12px;
+  background: #fff7f1;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.dual-progress-text {
+  font-weight: 700;
+  color: var(--helper);
+}
+
+.dual-progress-fill {
+  width: 0;
+  height: 10px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--teal), var(--mint));
+  transition: width 160ms ease-out;
+}
+
 .dual-timer {
   margin: 8px 0 4px;
   color: var(--blossom);
@@ -790,7 +815,45 @@ button.option:disabled {
   color: var(--text);
   border: 1px solid var(--border);
   width: auto;
-  min-width: 120px;
+  min-width: 140px;
+}
+
+.dropdown.checked {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 2px rgba(52, 172, 186, 0.18);
+}
+
+.token.checked::after {
+  content: "✓";
+  color: #166534;
+  font-weight: 900;
+  margin-left: 6px;
+}
+
+.token.attention {
+  border-color: #f59e0b;
+  background: #fff7ed;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.4);
+}
+
+.editing-actions {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.completion-badge {
+  background: #ecfdf3;
+  border: 1px solid rgba(74, 222, 128, 0.45);
+  color: #15803d;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+.completion-badge.hidden {
+  display: none;
 }
 
 .feedback-overlay {
