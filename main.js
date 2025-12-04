@@ -834,10 +834,10 @@ const extinctionRecipes = [
   },
   {
     template:
-      "[[leadIn]]{name} explained that {subject} {be} covering for {object} while fixing {possAdj} badge.",
+      "[[leadIn]]{name} explained that {subject} {be} covering the desk while the badge office reprinted {possAdj} badge.",
     slots: {
       leadIn: [
-        "", 
+        "",
         "During the shift change, ",
         "Before the concert, ",
         "As the meeting wrapped up, "
