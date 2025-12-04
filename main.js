@@ -1,5 +1,5 @@
 const pronounPresets = [
-   {
+  {
     key: "theyThem",
     label: "They/Them",
     pronouns: {
@@ -9,7 +9,7 @@ const pronounPresets = [
       possPron: "theirs",
       reflexive: "themself"
     },
-    verbGrammar: "singular"
+    verbGrammar: "plural"
   },
   {
     key: "sheHer",
