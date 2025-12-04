@@ -12,6 +12,18 @@ const pronounPresets = [
     verbGrammar: "plural"
   },
   {
+    key: "theyThemSingular",
+    label: "They/Them (singular)",
+    pronouns: {
+      subject: "they",
+      object: "them",
+      possAdj: "their",
+      possPron: "theirs",
+      reflexive: "themself"
+    },
+    verbGrammar: "singular"
+  },
+  {
     key: "sheHer",
     label: "She/Her",
     pronouns: {
@@ -32,30 +44,6 @@ const pronounPresets = [
       possAdj: "his",
       possPron: "his",
       reflexive: "himself"
-    },
-    verbGrammar: "singular"
-  },
-  {
-    key: "zeZir",
-    label: "Ze/Zir",
-    pronouns: {
-      subject: "ze",
-      object: "zir",
-      possAdj: "zir",
-      possPron: "zirs",
-      reflexive: "zirself"
-    },
-    verbGrammar: "singular"
-  },
-  {
-    key: "xeXem",
-    label: "Xe/Xem",
-    pronouns: {
-      subject: "xe",
-      object: "xem",
-      possAdj: "xyr",
-      possPron: "xyrs",
-      reflexive: "xemself"
     },
     verbGrammar: "singular"
   },
@@ -98,30 +86,6 @@ const extinctionPresets = [
       possAdj: "their",
       possPron: "theirs",
       reflexive: "themselves"
-    }
-  },
-  {
-    key: "zeZir",
-    label: "ze / zir / zirs / zirself",
-    terms: ["ze", "zir", "zirs", "zirself"],
-    pronouns: {
-      subject: "ze",
-      object: "zir",
-      possAdj: "zir",
-      possPron: "zirs",
-      reflexive: "zirself"
-    }
-  },
-  {
-    key: "xeXem",
-    label: "xe / xem / xyrs / xemself",
-    terms: ["xe", "xem", "xyrs", "xemself"],
-    pronouns: {
-      subject: "xe",
-      object: "xem",
-      possAdj: "xyr",
-      possPron: "xyrs",
-      reflexive: "xemself"
     }
   },
   { key: "custom", label: "Custom (type exact terms)", custom: true }
@@ -794,7 +758,7 @@ function generateMappingTrials(limitCount = 60) {
     const distractors = shuffle(
       pool.filter((p) => p && p.toLowerCase() !== (correct || "").toLowerCase())
     ).slice(0, 3);
-    const fallbackOptions = ["he", "she", "they", "ze", "xe", "him", "her", "them", "zir", "xem"];
+    const fallbackOptions = ["he", "she", "they", "him", "her", "them", "his", "hers", "theirs"];
     const optionSet = new Set([correct, ...distractors].filter(Boolean));
     fallbackOptions.forEach((p) => {
       if (optionSet.size < 4 && p.toLowerCase() !== (correct || "").toLowerCase()) optionSet.add(p);
@@ -888,11 +852,11 @@ function generateDualTrials(sessionSeconds) {
 function generateEditingTrials(limitCount = 35) {
   const { pronouns, extinctionPronounSets, verbGrammar, targetName, deadname } = appState.setup;
   const baseWrongPools = {
-    subject: ["he", "she", "they", "ze", "xe"],
-    object: ["him", "her", "them", "zir", "xem"],
-    possAdj: ["his", "her", "their", "zir", "xyr"],
-    possPron: ["his", "hers", "theirs", "zirs", "xyrs"],
-    reflexive: ["himself", "herself", "themselves", "zirself", "xemself"]
+    subject: ["he", "she", "they"],
+    object: ["him", "her", "them"],
+    possAdj: ["his", "her", "their"],
+    possPron: ["his", "hers", "theirs"],
+    reflexive: ["himself", "herself", "themselves"]
   };
 
   const wrongPools = Object.entries(baseWrongPools).reduce((acc, [key, list]) => {

@@ -87,7 +87,7 @@ function validateAgreement(sentence, pronouns, expectedGrammar) {
       assert(!lower.includes(bad), `They/them should follow ${grammar} verbs in: ${sentence}`);
     });
   }
-  if (["he", "she", "ze", "xe", "nat"].includes(subj)) {
+  if (["he", "she", "nat"].includes(subj)) {
     if (grammar !== "plural") {
       [" are ", " have ", " were "].forEach((verb) => {
         const needle = ` ${subj} ${verb}`;
