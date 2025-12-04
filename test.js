@@ -186,6 +186,19 @@ function testConservativeModeReducesTheyDensity() {
   assert(lower.includes("they are"), "Conservative mode should still use plural be-verb");
 }
 
+function testSingularHintForNonPronounSubjects() {
+  const pattern = BASE_SENTENCE_PATTERNS.find((p) => p.id === "ownership_check");
+  const sentence = buildSentenceFromPattern(pattern, pronounSets[0].pronouns, {
+    name: "Alex",
+    grammar: "plural"
+  });
+
+  assert(
+    sentence.includes("notebook was really theirs"),
+    `Singular hint should keep non-pronoun subjects in singular past tense: ${sentence}`
+  );
+}
+
 function testDuplicateLeadCleanup() {
   const pattern = {
     id: "dup_lead",
@@ -242,6 +255,7 @@ function run() {
   testEditingVerbGrammarHint();
   testTheyOverridesStayPlural();
   testConservativeModeReducesTheyDensity();
+  testSingularHintForNonPronounSubjects();
   testDuplicateLeadCleanup();
   testDoubleIntroCollapse();
   console.log("All tests passed.");
