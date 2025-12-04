@@ -12,18 +12,6 @@ const pronounPresets = [
     verbGrammar: "plural"
   },
   {
-    key: "theyThemSingular",
-    label: "They/Them (singular verbs)",
-    pronouns: {
-      subject: "they",
-      object: "them",
-      possAdj: "their",
-      possPron: "theirs",
-      reflexive: "themself"
-    },
-    verbGrammar: "singular"
-  },
-  {
     key: "sheHer",
     label: "She/Her (singular verbs)",
     pronouns: {
@@ -172,50 +160,53 @@ const pacingSecondsPerTrial = { mapping: 6, extinction: 6, editing: 7 };
 
 const summaryStorageKey = "noun-gym-last-summary";
 
-const setupForm = document.getElementById("setup-form");
+const doc = typeof document !== "undefined" ? document : null;
+const setupForm = doc ? doc.getElementById("setup-form") : null;
 
-const setupScreen = document.getElementById("setup-screen");
-const testScreen = document.getElementById("test-screen");
-const summaryScreen = document.getElementById("summary-screen");
-const trialContainer = document.getElementById("trial-container");
-const trialCounter = document.getElementById("trial-counter");
-const practiceName = document.getElementById("practice-name");
-const summaryStats = document.getElementById("summary-stats");
-const savedSummarySection = document.getElementById("saved-summary");
-const savedSummaryGrid = document.getElementById("saved-summary-grid");
-const savedSummaryMeta = document.getElementById("saved-summary-meta");
-const clearSummaryBtn = document.getElementById("clear-summary-btn");
-const endSessionBtn = document.getElementById("end-session-btn");
-const shareSetupBtn = document.getElementById("share-setup-btn");
-const targetNameInput = document.getElementById("targetName");
-const pronounPresetSelect = document.getElementById("pronounPreset");
-const extinctionPresetSelect = document.getElementById("extinctionPreset");
-const extinctionCustomFields = document.getElementById("extinction-custom-fields");
-const extinctionChips = document.getElementById("extinction-chips");
+const setupScreen = doc ? doc.getElementById("setup-screen") : null;
+const testScreen = doc ? doc.getElementById("test-screen") : null;
+const summaryScreen = doc ? doc.getElementById("summary-screen") : null;
+const trialContainer = doc ? doc.getElementById("trial-container") : null;
+const trialCounter = doc ? doc.getElementById("trial-counter") : { textContent: "" };
+const practiceName = doc ? doc.getElementById("practice-name") : { textContent: "" };
+const summaryStats = doc ? doc.getElementById("summary-stats") : null;
+const savedSummarySection = doc ? doc.getElementById("saved-summary") : null;
+const savedSummaryGrid = doc ? doc.getElementById("saved-summary-grid") : null;
+const savedSummaryMeta = doc ? doc.getElementById("saved-summary-meta") : null;
+const clearSummaryBtn = doc ? doc.getElementById("clear-summary-btn") : null;
+const endSessionBtn = doc ? doc.getElementById("end-session-btn") : null;
+const shareSetupBtn = doc ? doc.getElementById("share-setup-btn") : null;
+const targetNameInput = doc ? doc.getElementById("targetName") : null;
+const pronounPresetSelect = doc ? doc.getElementById("pronounPreset") : null;
+const extinctionPresetSelect = doc ? doc.getElementById("extinctionPreset") : null;
+const extinctionCustomFields = doc ? doc.getElementById("extinction-custom-fields") : { classList: { toggle: () => {} } };
+const extinctionChips = doc ? doc.getElementById("extinction-chips") : null;
 const pronounInputs = {
-  subject: document.querySelector('input[name="subject"]'),
-  object: document.querySelector('input[name="object"]'),
-  possAdj: document.querySelector('input[name="possAdj"]'),
-  possPron: document.querySelector('input[name="possPron"]'),
-  reflexive: document.querySelector('input[name="reflexive"]')
+  subject: doc ? doc.querySelector('input[name="subject"]') : null,
+  object: doc ? doc.querySelector('input[name="object"]') : null,
+  possAdj: doc ? doc.querySelector('input[name="possAdj"]') : null,
+  possPron: doc ? doc.querySelector('input[name="possPron"]') : null,
+  reflexive: doc ? doc.querySelector('input[name="reflexive"]') : null
 };
 const extinctionInputs = {
-  subject: document.querySelector('input[name="extinctionSubject"]'),
-  object: document.querySelector('input[name="extinctionObject"]'),
-  possAdj: document.querySelector('input[name="extinctionPossAdj"]'),
-  possPron: document.querySelector('input[name="extinctionPossPron"]'),
-  reflexive: document.querySelector('input[name="extinctionReflexive"]')
+  subject: doc ? doc.querySelector('input[name="extinctionSubject"]') : null,
+  object: doc ? doc.querySelector('input[name="extinctionObject"]') : null,
+  possAdj: doc ? doc.querySelector('input[name="extinctionPossAdj"]') : null,
+  possPron: doc ? doc.querySelector('input[name="extinctionPossPron"]') : null,
+  reflexive: doc ? doc.querySelector('input[name="extinctionReflexive"]') : null
 };
-const grammarRadios = document.querySelectorAll('input[name="verbGrammar"]');
-const sessionLengthSelect = document.getElementById("sessionLength");
-const deadnameInput = document.getElementById("deadname");
+const grammarRadios = doc ? doc.querySelectorAll('input[name="verbGrammar"]') : [];
+const sessionLengthSelect = doc ? doc.getElementById("sessionLength") : null;
+const deadnameInput = doc ? doc.getElementById("deadname") : null;
 
-const isTouch = navigator.maxTouchPoints && navigator.maxTouchPoints > 0;
+const isTouch = typeof navigator !== "undefined" && navigator.maxTouchPoints && navigator.maxTouchPoints > 0;
 
 function populateSelect(selectEl, presets, defaultKey) {
+  if (!selectEl) return;
   selectEl.innerHTML = "";
   presets.forEach((preset) => {
-    const opt = document.createElement("option");
+    const opt = doc ? document.createElement("option") : null;
+    if (!opt) return;
     opt.value = preset.key;
     opt.textContent = preset.label;
     if (preset.key === defaultKey) opt.selected = true;
@@ -230,6 +221,7 @@ function setGrammar(value) {
 }
 
 function getSelectedValues(selectEl) {
+  if (!selectEl) return [];
   return Array.from(selectEl.selectedOptions || []).map((opt) => opt.value);
 }
 
@@ -237,7 +229,7 @@ function applyPronounPreset(key) {
   const preset = pronounPresets.find((p) => p.key === key);
   if (!preset || preset.custom) return;
   Object.entries(preset.pronouns).forEach(([k, v]) => {
-    pronounInputs[k].value = v;
+    if (pronounInputs[k]) pronounInputs[k].value = v;
   });
   setGrammar(preset.verbGrammar);
 }
@@ -251,11 +243,11 @@ function applyExtinctionPreset(keys) {
 
   if (hasCustom) {
     Object.values(extinctionInputs).forEach((input) => {
-      input.value = "";
+      if (input) input.value = "";
     });
   } else if (preset && preset.pronouns && selectedKeys.length === 1) {
     Object.entries(extinctionInputs).forEach(([k, input]) => {
-      input.value = preset.pronouns[k] || "";
+      if (input) input.value = preset.pronouns[k] || "";
     });
   }
 
@@ -300,6 +292,19 @@ const grammarLexicon = {
   plural: {
     be: "are",
     have: "have",
+    do: "do",
+    go: "go",
+    need: "need",
+    plan: "plan",
+    prefer: "prefer",
+    bring: "bring",
+    make: "make",
+    finish: "finish",
+    check: "check",
+    share: "share",
+    care: "care",
+    lead: "lead",
+    support: "support",
     s: "",
     were: "were",
     "don't": "don't"
@@ -307,11 +312,32 @@ const grammarLexicon = {
   singular: {
     be: "is",
     have: "has",
+    do: "does",
+    go: "goes",
+    need: "needs",
+    plan: "plans",
+    prefer: "prefers",
+    bring: "brings",
+    make: "makes",
+    finish: "finishes",
+    check: "checks",
+    share: "shares",
+    care: "cares",
+    lead: "leads",
+    support: "supports",
     s: "s",
     were: "was",
     "don't": "doesn't"
   }
 };
+
+function resolveGrammar(subject, overrideGrammar, hint) {
+  const normalized = (subject || "").trim().toLowerCase();
+  const preferred = overrideGrammar || inferGrammarFromPronoun(normalized);
+  if (hint === "name") return "singular";
+  const forcePlural = normalized === "they" || normalized === "them";
+  return forcePlural ? "plural" : preferred;
+}
 
 function fillSlots(template, slots = {}) {
   return Object.entries(slots).reduce((text, [key, value]) => {
@@ -356,13 +382,19 @@ function expandRecipes(recipes, fallbackLimit = 60) {
 
 const languageTokenRegex = /\{([^}]+)\}/g;
 
+function conjugateVerb(base, grammarSet) {
+  if (!base) return base;
+  if (grammarSet[base] !== undefined) return grammarSet[base];
+  const needsS = grammarSet === grammarLexicon.singular;
+  return needsS ? `${base}${grammarSet.s}` : base;
+}
+
 function applyLanguageRules(template, overrides = {}) {
   const { targetName, deadname, verbGrammar } = appState.setup;
   const pronouns = overrides.pronouns || overrides.pronounSet || appState.setup.pronouns;
   const grammar = overrides.grammar || verbGrammar || inferGrammarFromPronoun(pronouns.subject);
   const subject = (pronouns.subject || "").toLowerCase();
-  const grammarForPronouns =
-    grammar === "singular" && subject === "they" ? "plural" : grammar;
+  const grammarForPronouns = resolveGrammar(subject, grammar);
 
   const context = {
     targetName,
@@ -390,9 +422,22 @@ function applyLanguageRules(template, overrides = {}) {
     if (token === "deadname") return context.deadname;
     if (token in pronounTokens) return pronounTokens[token] || "";
 
-    const grammarSet = hint === "name" ? grammarLexicon.singular : grammarTokens;
-    if (token === "are") return grammarSet.be;
+    const resolvedGrammar = resolveGrammar(context.pronouns.subject, grammar, hint);
+    const grammarSet = grammarLexicon[resolvedGrammar] || grammarTokens;
+    if (token === "are" || token === "be") return grammarSet.be;
+    if (token === "have") return grammarSet.have;
+    if (token === "do") return grammarSet.do;
+    if (token === "were") return grammarSet.were;
+    if (token === "don't") return grammarSet["don't"];
     if (grammarSet[token] !== undefined) return grammarSet[token];
+
+    if (token.startsWith("verb-")) {
+      const base = token.slice(5);
+      return conjugateVerb(base, grammarSet);
+    }
+    if (grammarSet[token] === undefined) {
+      return conjugateVerb(token, grammarSet);
+    }
 
     return match;
   });
@@ -689,6 +734,21 @@ const mappingRecipes = [
   },
   {
     type: "subject",
+    template: "Over the weekend, ___ {have} [[familyTask]] planned with [[relative]].",
+    slots: {
+      familyTask: [
+        "a brunch reservation",
+        "a park walk",
+        "a board game night",
+        "chores to finish",
+        "a movie marathon"
+      ],
+      relative: ["their sister", "their nephew", "grandma", "the twins", "their partner"]
+    },
+    limit: 50
+  },
+  {
+    type: "subject",
     template: "[[timeframe]], ___ {have} [[task]] ready for review.",
     slots: {
       timeframe: [
@@ -741,6 +801,11 @@ const mappingRecipes = [
       ]
     },
     limit: 40
+  },
+  {
+    type: "object",
+    template: "At the potluck, I set aside a plate for ___ near the window seat.",
+    limit: 35
   },
   {
     type: "possAdj",
@@ -857,6 +922,10 @@ const extinctionRecipes = [
     limit: 45
   },
   {
+    template: "In the waiting room, {name} noted that {subject} {be} next in line and waved {object} over.",
+    limit: 45
+  },
+  {
     template: "We reserved a badge for {object} because {subject} confirmed {possAdj} attendance.",
     limit: 45
   },
@@ -871,6 +940,10 @@ const extinctionRecipes = [
   {
     template: "Even though the form listed {deadname}, everyone used {possAdj} correct details afterward.",
     limit: 50
+  },
+  {
+    template: "During game night, I reminded the team that the winning score was definitely {possPron}, not anyone else's.",
+    limit: 40
   },
   {
     template: "During roll call, the instructor waited for {object} to state {possAdj} name.",
@@ -948,7 +1021,12 @@ function generateMappingTrials(limitCount = 60) {
     const distractors = shuffle(
       pool.filter((p) => p && p.toLowerCase() !== (correct || "").toLowerCase())
     ).slice(0, 3);
-    const options = shuffle([...new Set([correct, ...distractors])]);
+    const fallbackOptions = ["he", "she", "they", "ze", "xe", "him", "her", "them", "zir", "xem"];
+    const optionSet = new Set([correct, ...distractors].filter(Boolean));
+    fallbackOptions.forEach((p) => {
+      if (optionSet.size < 4 && p.toLowerCase() !== (correct || "").toLowerCase()) optionSet.add(p);
+    });
+    const options = shuffle([...optionSet]).slice(0, 4);
 
     const processed = applyLanguageRules(tpl.text, { pronouns, grammar });
     return {
@@ -1160,7 +1238,7 @@ function stopDualProgress() {
   }
 }
 
-function startDualProgress(durationSeconds = 0) {
+function startDualProgress(durationSeconds = 0, onUpdate) {
   stopDualProgress();
   const startTime = Date.now();
 
@@ -1174,6 +1252,7 @@ function startDualProgress(durationSeconds = 0) {
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
     const remaining = Math.max(durationSeconds - elapsed, 0);
     trialCounter.textContent = `Dual task • ${format(remaining)} left`;
+    if (typeof onUpdate === "function") onUpdate({ remaining, elapsed, duration: durationSeconds });
     if (remaining <= 0) stopDualProgress();
   };
 
@@ -1291,6 +1370,16 @@ function renderDualTrial(trial) {
     ? "Tap ODD or EVEN for the numbers, and tap CORRECT or WRONG for the sentence. No keyboard is needed."
     : "Use the on-screen buttons (or Space/Enter for numbers and J/K for the sentence) to respond with just your mouse or keyboard.";
   trialContainer.appendChild(instructions);
+
+  const progressShell = document.createElement("div");
+  progressShell.className = "dual-progress";
+  const progressFill = document.createElement("div");
+  progressFill.className = "dual-progress-fill";
+  const progressText = document.createElement("span");
+  progressText.className = "dual-progress-text";
+  progressText.textContent = "Starting block...";
+  progressShell.append(progressText, progressFill);
+  trialContainer.appendChild(progressShell);
   const grid = document.createElement("div");
   grid.className = "dual-grid";
 
@@ -1342,6 +1431,15 @@ function renderDualTrial(trial) {
   grid.appendChild(numberArea);
   grid.appendChild(pronounArea);
   trialContainer.appendChild(grid);
+
+  const updateProgress = ({ remaining, duration }) => {
+    const elapsed = Math.max(duration - remaining, 0);
+    const pct = Math.min(100, Math.round((elapsed / duration) * 100));
+    progressFill.style.width = `${pct}%`;
+    progressText.textContent = `Dual task • ${Math.max(0, remaining)}s left`;
+  };
+
+  startDualProgress(trial.duration, updateProgress);
 
   let numberStart = Date.now();
   let pronounStart = null;
@@ -1541,7 +1639,7 @@ function renderEditingTrial(trial) {
   const instructions = document.createElement("p");
   instructions.className = "label";
   instructions.textContent =
-    "Click the wrong word and choose the right pronoun, adjust is/are if needed, then press Continue.";
+    "Click the wrong word, choose the right pronoun, and tweak verbs like is/are or has/have so everything agrees.";
   trialContainer.appendChild(instructions);
 
   const tokens = trial.text.split(" ");
@@ -1553,9 +1651,29 @@ function renderEditingTrial(trial) {
   continueBtn.textContent = "Continue";
   continueBtn.disabled = true;
   continueBtn.style.marginTop = "12px";
+  const completionBadge = document.createElement("span");
+  completionBadge.className = "completion-badge hidden";
+  completionBadge.textContent = "✓ All corrections made";
+  const editingActions = document.createElement("div");
+  editingActions.className = "editing-actions";
+  editingActions.append(completionBadge, continueBtn);
 
   const corrections = new Map();
   const requiredIndices = new Set();
+  const verbIndices = new Set();
+  const currentTokens = [...tokens];
+  let currentSubjectGrammar = inferGrammarFromPronoun(trial.correct || appState.setup.pronouns.subject);
+
+  const verbOptions = {
+    is: ["is", "are"],
+    are: ["are", "is"],
+    was: ["was", "were"],
+    were: ["were", "was"],
+    has: ["has", "have"],
+    have: ["have", "has"],
+    does: ["does", "do"],
+    do: ["do", "does"]
+  };
 
   const collectPronounPool = () => {
     const fromSetup = Object.values(appState.setup.pronouns || {});
@@ -1581,7 +1699,30 @@ function renderEditingTrial(trial) {
         return entry && entry.valid;
       });
     continueBtn.disabled = !ready;
+    completionBadge.classList.toggle("hidden", !ready);
     return ready;
+  };
+
+  const expectedVerbForGrammar = (verb, grammar) => {
+    const normalizedVerb = verb.toLowerCase();
+    const pluralTargets = { is: "are", was: "were", has: "have", does: "do" };
+    const singularTargets = { are: "is", were: "was", have: "has", do: "does" };
+    const lookup = grammar === "plural" ? pluralTargets : singularTargets;
+    return lookup[normalizedVerb] || normalizedVerb;
+  };
+
+  const refreshVerbRequirements = () => {
+    verbIndices.forEach((idx) => {
+      const tokenValue = (currentTokens[idx] || "").replace(/[^a-z']/gi, "").toLowerCase();
+      const expected = expectedVerbForGrammar(tokenValue, currentSubjectGrammar);
+      const needsAdjustment = tokenValue !== expected;
+      if (needsAdjustment) requiredIndices.add(idx);
+      const entry = corrections.get(idx) || { required: false, valid: !needsAdjustment };
+      corrections.set(idx, { ...entry, required: requiredIndices.has(idx), valid: !needsAdjustment });
+      const node = tokenWrap.querySelector(`[data-idx="${idx}"]`);
+      if (node) node.classList.toggle("attention", needsAdjustment);
+    });
+    updateReadyState();
   };
 
   tokens.forEach((tok, idx) => {
@@ -1591,11 +1732,13 @@ function renderEditingTrial(trial) {
     const baseToken = punctuationMatch ? tok.slice(0, -suffix.length) : tok;
     const normalized = baseToken.toLowerCase();
     const isWrong = normalized === trial.wrongWord.toLowerCase();
-    const isVerbSwitchable = normalized === "is" || normalized === "are";
+    const isVerbSwitchable = Boolean(verbOptions[normalized]);
+    if (isVerbSwitchable) verbIndices.add(idx);
     const isPronounToken = pronounPool.has(normalized);
     if (isWrong) requiredIndices.add(idx);
     span.className = "token";
     span.textContent = tok;
+    span.dataset.idx = idx;
     span.addEventListener("click", () => {
       if (!isWrong && !isVerbSwitchable && !isPronounToken) return;
       if (span.dataset.replaced === "true") return;
@@ -1605,7 +1748,9 @@ function renderEditingTrial(trial) {
         "aria-label",
         isVerbSwitchable ? "Choose replacement verb" : "Choose replacement pronoun"
       );
-      const baseOptions = isVerbSwitchable ? ["is", "are"] : [...(trial.options || [])];
+      const baseOptions = isVerbSwitchable
+        ? verbOptions[normalized] || [normalized]
+        : [...(trial.options || [])];
       if (!isVerbSwitchable) {
         baseOptions.push(baseToken);
       }
@@ -1620,12 +1765,23 @@ function renderEditingTrial(trial) {
       select.value = options.includes(startingValue) ? startingValue : options[0];
 
       const markState = (value) => {
-        const isCorrect = isWrong ? value === trial.correct : true;
+        const normalizedValue = value.toLowerCase();
+        if (isWrong && trial.wrongType === "subject") {
+          currentSubjectGrammar = inferGrammarFromPronoun(normalizedValue);
+        }
+        currentTokens[idx] = `${value}${suffix}`;
+        const expectedVerb = isVerbSwitchable
+          ? expectedVerbForGrammar(normalizedValue, currentSubjectGrammar)
+          : normalizedValue;
+        const isCorrect = isWrong ? value === trial.correct : normalizedValue === expectedVerb;
         corrections.set(idx, { required: requiredIndices.has(idx), valid: isCorrect });
         if (isWrong) {
           select.classList.toggle("incorrect", !isCorrect);
           select.classList.toggle("correct", isCorrect);
         }
+        select.classList.toggle("checked", isCorrect);
+        select.parentElement?.classList.toggle("checked", isCorrect);
+        refreshVerbRequirements();
         if (updateReadyState()) continueBtn.focus();
       };
 
@@ -1634,6 +1790,7 @@ function renderEditingTrial(trial) {
 
       const wrapper = document.createElement("span");
       wrapper.className = "token";
+      wrapper.dataset.idx = idx;
       wrapper.appendChild(select);
       if (suffix) {
         const punct = document.createElement("span");
@@ -1648,19 +1805,21 @@ function renderEditingTrial(trial) {
   });
 
   trialContainer.appendChild(tokenWrap);
-  trialContainer.appendChild(continueBtn);
+  trialContainer.appendChild(editingActions);
 
   continueBtn.addEventListener("click", () => {
     const ready = updateReadyState();
     if (!ready) return;
     handleAnswer(true, nextTrial, "editing", start);
   });
+
+  refreshVerbRequirements();
 }
 
 function renderTrial() {
   const trial = appState.trials[appState.currentTrialIndex];
   if (trial.type === "dual") {
-    startDualProgress(trial.duration);
+    trialCounter.textContent = "Dual task";
   } else {
     stopDualProgress();
     trialCounter.textContent = `${appState.currentTrialIndex + 1} / ${appState.trials.length}`;
@@ -1807,8 +1966,10 @@ hydrateSetupFromUrl();
 
 const selectedExtinctionValues = () => getSelectedValues(extinctionPresetSelect);
 
-pronounPresetSelect.addEventListener("change", (e) => applyPronounPreset(e.target.value));
-extinctionPresetSelect.addEventListener("change", () => applyExtinctionPreset(selectedExtinctionValues()));
+if (pronounPresetSelect)
+  pronounPresetSelect.addEventListener("change", (e) => applyPronounPreset(e.target.value));
+if (extinctionPresetSelect)
+  extinctionPresetSelect.addEventListener("change", () => applyExtinctionPreset(selectedExtinctionValues()));
 
 if (setupForm) {
   setupForm.addEventListener("submit", (e) => {
@@ -1851,8 +2012,24 @@ if (endSessionBtn) {
   });
 }
 
-document.getElementById("restart-btn").addEventListener("click", resetApp);
+const restartBtn = doc ? doc.getElementById("restart-btn") : null;
+if (restartBtn) restartBtn.addEventListener("click", resetApp);
 if (clearSummaryBtn) {
   clearSummaryBtn.addEventListener("click", clearSavedSummary);
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    applyLanguageRules,
+    grammarLexicon,
+    inferGrammarFromPronoun,
+    resolveGrammar,
+    expandRecipes,
+    mappingRecipes,
+    extinctionRecipes,
+    editingRecipes,
+    generateMappingTrials,
+    appState
+  };
 }
 
