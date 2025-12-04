@@ -41,7 +41,7 @@
           </div>
 
           <div class="panel-grid">
-            <div class="panel">
+            <div class="panel panel--primary">
               <div class="panel-header">
                 <h3>Target identity</h3>
               </div>
@@ -85,39 +85,19 @@
 
             <div class="panel">
               <div class="panel-header">
-                <h3>Phase-out focus</h3>
+                <h3>Test modes</h3>
+                <span class="pill optional-pill">Required setup</span>
               </div>
-              <div class="form-group">
-                <label for="extinctionPreset">Pronouns to extinguish</label>
-                <select id="extinctionPreset" name="extinctionPreset" class="multi-select" multiple></select>
-                <div id="extinction-chips" class="chip-row" aria-live="polite"></div>
-                <p class="helper">Pick one or more sets to phase out. Combine a preset with custom entries for mixed traps.</p>
-              </div>
-              <div class="form-group">
-                <label for="deadname">Deadname (optional, used in traps)</label>
-                <input id="deadname" class="input-hero" name="deadname" type="text" placeholder="former name" />
-                <p class="helper">Leave blank to skip name-based traps. When filled, traps focus on pronoun accuracy even if the old name appears.</p>
-              </div>
-
-              <fieldset class="form-group hidden" id="extinction-custom-fields">
-                <legend>Custom phase-out pronouns</legend>
-                <div class="pronoun-grid">
-                  <label>Subject<input name="extinctionSubject" type="text" placeholder="he" /></label>
-                  <label>Object<input name="extinctionObject" type="text" placeholder="him" /></label>
-                  <label>Possessive Adj<input name="extinctionPossAdj" type="text" placeholder="his" /></label>
-                  <label>Possessive Pron<input name="extinctionPossPron" type="text" placeholder="his" /></label>
-                  <label>Reflexive<input name="extinctionReflexive" type="text" placeholder="himself" /></label>
-                </div>
-              </fieldset>
-
+              <p class="helper">Quick Mapping is always on so you have a warm-up; layer in other modes to match your focus.</p>
               <fieldset class="form-group">
                 <legend>Test Styles</legend>
                 <div class="test-style-grid">
+                  <input type="hidden" name="testStyleMapping" value="on" />
                   <label class="test-style">
-                    <input type="checkbox" name="testStyleMapping" checked />
+                    <input type="checkbox" name="testStyleMapping" checked disabled />
                     <div class="test-style-copy">
                       <span class="test-style-title">Quick Mapping</span>
-                      <span class="helper">Choose the right pronoun for a blank.</span>
+                      <span class="helper">Always on. Choose the right pronoun for a blank.</span>
                     </div>
                   </label>
                   <label class="test-style">
@@ -141,6 +121,35 @@
                       <span class="helper">Tap the wrong pronoun, swap it, then continue.</span>
                     </div>
                   </label>
+                </div>
+              </fieldset>
+            </div>
+
+            <div class="panel panel--secondary">
+              <div class="panel-header">
+                <h3>Phase-out focus</h3>
+                <span class="pill optional-pill">Optional</span>
+              </div>
+              <div class="form-group">
+                <label for="extinctionPreset">Pronouns to extinguish</label>
+                <select id="extinctionPreset" name="extinctionPreset" class="multi-select" multiple></select>
+                <div id="extinction-chips" class="chip-row" aria-live="polite"></div>
+                <p class="helper">Pick one or more sets to phase out. Combine a preset with custom entries for mixed traps.</p>
+              </div>
+              <div class="form-group">
+                <label for="deadname">Deadname (optional, used in traps)</label>
+                <input id="deadname" class="input-hero" name="deadname" type="text" placeholder="former name" />
+                <p class="helper">Leave blank to skip name-based traps. When filled, traps focus on pronoun accuracy even if the old name appears.</p>
+              </div>
+
+              <fieldset class="form-group hidden" id="extinction-custom-fields">
+                <legend>Custom phase-out pronouns</legend>
+                <div class="pronoun-grid">
+                  <label>Subject<input name="extinctionSubject" type="text" placeholder="he" /></label>
+                  <label>Object<input name="extinctionObject" type="text" placeholder="him" /></label>
+                  <label>Possessive Adj<input name="extinctionPossAdj" type="text" placeholder="his" /></label>
+                  <label>Possessive Pron<input name="extinctionPossPron" type="text" placeholder="his" /></label>
+                  <label>Reflexive<input name="extinctionReflexive" type="text" placeholder="himself" /></label>
                 </div>
               </fieldset>
 
