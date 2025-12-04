@@ -3,13 +3,12 @@ const {
   grammarLexicon,
   inferGrammarFromPronoun,
   resolveGrammar,
-  expandRecipes,
-  mappingRecipes,
-  extinctionRecipes,
-  editingRecipes,
   generateMappingTrials,
   appState
 } = require("./main.js");
+const { BASE_SENTENCE_PATTERNS, buildSentenceFromPattern } = require("./sentences.js");
+
+global.applyLanguageRules = applyLanguageRules;
 
 function assert(condition, message) {
   if (!condition) {
@@ -98,11 +97,7 @@ function validateAgreement(sentence, pronouns, expectedGrammar) {
 }
 
 function testGrammarAcrossTemplates() {
-  const recipeBatches = [
-    ...expandRecipes(mappingRecipes, 20),
-    ...expandRecipes(extinctionRecipes, 20),
-    ...expandRecipes(editingRecipes, 20)
-  ];
+  const patterns = BASE_SENTENCE_PATTERNS.filter(Boolean);
 
   pronounSets.forEach((set) => {
     const selectedGrammar = set.grammar || inferGrammarFromPronoun(set.pronouns.subject);
@@ -115,13 +110,18 @@ function testGrammarAcrossTemplates() {
       extinctionPronounSets: []
     };
 
-    recipeBatches.forEach((tpl) => {
-      const templateText = tpl.text || tpl.template || "";
-      const sentence = applyLanguageRules(templateText, {
-        pronouns: set.pronouns,
-        grammar: selectedGrammar
+    patterns.forEach((pattern) => {
+      const sentence = buildSentenceFromPattern(pattern, set.pronouns, {
+        name: "Nat",
+        deadname: "Old Name",
+        grammar: resolveGrammar(set.pronouns.subject, selectedGrammar),
+        hint: "name"
       });
-      validateAgreement(sentence, set.pronouns, resolveGrammar(set.pronouns.subject, selectedGrammar));
+      validateAgreement(
+        sentence,
+        set.pronouns,
+        resolveGrammar(set.pronouns.subject, selectedGrammar)
+      );
     });
   });
 }

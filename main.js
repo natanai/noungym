@@ -127,6 +127,21 @@ const extinctionPresets = [
   { key: "custom", label: "Custom (type exact terms)", custom: true }
 ];
 
+let sentencePatternsSource =
+  typeof BASE_SENTENCE_PATTERNS !== "undefined" ? BASE_SENTENCE_PATTERNS : null;
+let sentenceBuilder =
+  typeof buildSentenceFromPattern === "function" ? buildSentenceFromPattern : null;
+
+if (typeof module !== "undefined" && module.exports && (!sentencePatternsSource || !sentenceBuilder)) {
+  try {
+    const engine = require("./sentences.js");
+    sentencePatternsSource = sentencePatternsSource || engine.BASE_SENTENCE_PATTERNS;
+    sentenceBuilder = sentenceBuilder || engine.buildSentenceFromPattern;
+  } catch (e) {
+    // ignore missing engine in non-node contexts
+  }
+}
+
 const appState = {
   setup: {
     targetName: "",
@@ -351,47 +366,6 @@ function resolveGrammar(subject, overrideGrammar, hint) {
   return inferGrammarFromPronoun(normalized);
 }
 
-function fillSlots(template, slots = {}) {
-  return Object.entries(slots).reduce((text, [key, value]) => {
-    const pattern = new RegExp(`\\[\\[${key}\\]\\]`, "g");
-    return text.replace(pattern, value);
-  }, template);
-}
-
-function expandRecipes(recipes, fallbackLimit = 60) {
-  const allTemplates = [];
-
-  recipes.forEach((recipe) => {
-    const slotKeys = Object.keys(recipe.slots || {});
-    let combinations = [{}];
-
-    slotKeys.forEach((key) => {
-      const values = recipe.slots[key] || [""];
-      const next = [];
-      combinations.forEach((combo) => {
-        values.forEach((value) => {
-          next.push({ ...combo, [key]: value });
-        });
-      });
-      combinations = next;
-    });
-
-    const limitedCombos = shuffle(combinations).slice(
-      0,
-      recipe.limit || fallbackLimit || combinations.length
-    );
-
-    limitedCombos.forEach((combo) => {
-      allTemplates.push({
-        ...recipe,
-        text: fillSlots(recipe.template, combo)
-      });
-    });
-  });
-
-  return allTemplates;
-}
-
 const languageTokenRegex = /\{([^}]+)\}/g;
 
 function conjugateVerb(base, grammarSet) {
@@ -402,7 +376,9 @@ function conjugateVerb(base, grammarSet) {
 }
 
 function applyLanguageRules(template, overrides = {}) {
-  const { targetName, deadname, verbGrammar } = appState.setup;
+  const { verbGrammar } = appState.setup;
+  const targetName = overrides.name ?? overrides.targetName ?? appState.setup.targetName;
+  const deadname = overrides.deadname ?? overrides.deadName ?? appState.setup.deadname;
   const pronouns = overrides.pronouns || overrides.pronounSet || appState.setup.pronouns;
   const grammar = overrides.grammar || verbGrammar || inferGrammarFromPronoun(pronouns.subject);
   const subject = (pronouns.subject || "").toLowerCase();
@@ -460,6 +436,32 @@ function shuffle(arr) {
     .map((item) => ({ item, sort: Math.random() }))
     .sort((a, b) => a.sort - b.sort)
     .map(({ item }) => item);
+}
+
+function escapeRegExp(str = "") {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getSentencePatterns() {
+  return sentencePatternsSource || [];
+}
+
+function getPatternsForModeAndRole(mode, role) {
+  return (getSentencePatterns() || []).filter((p) => {
+    return (!p.modes || p.modes.includes(mode)) &&
+      (!role || (p.pronounRolesUsed || []).includes(role));
+  });
+}
+
+function buildSentence(pattern, pronounSet, options = {}) {
+  if (typeof buildSentenceFromPattern === "function") {
+    return buildSentenceFromPattern(pattern, pronounSet, options);
+  }
+  if (typeof sentenceBuilder === "function") {
+    return sentenceBuilder(pattern, pronounSet, options);
+  }
+  const text = pattern.template || "";
+  return applyLanguageRules(text, { pronouns: pronounSet, ...options });
 }
 
 function collectSetupPayload(formData) {
@@ -705,313 +707,16 @@ function buildTrapPronounSet() {
   };
 }
 
-const mappingRecipes = [
-  {
-    type: "subject",
-    template: "[[leadIn]]___ {be} [[activity]] [[location]][[closing]]",
-    slots: {
-      leadIn: [
-        "",
-        "During practice, ",
-        "At the start of the week, ",
-        "Between appointments, ",
-        "Right before class, ",
-        "Earlier today, ",
-        "On the weekend, "
-      ],
-      activity: [
-        "leading the warmup",
-        "tracking the project milestones",
-        "handling the client emails",
-        "coordinating the carpool",
-        "organizing the shared files",
-        "reviewing the safety plan",
-        "checking the lighting cues",
-        "closing out the inventory",
-        "drafting the announcement"
-      ],
-      location: [
-        "in the studio",
-        "at the library",
-        "at rehearsal",
-        "at the clinic",
-        "for the volunteers",
-        "at the community center",
-        "at the makerspace",
-        "for the overnight shift"
-      ],
-      closing: [".", " today.", " before lunch.", " once the doors opened."]
-    },
-    limit: 90
-  },
-  {
-    type: "subject",
-    template: "Over the weekend, ___ {have} [[familyTask]] planned with [[relative]].",
-    slots: {
-      familyTask: [
-        "a brunch reservation",
-        "a park walk",
-        "a board game night",
-        "chores to finish",
-        "a movie marathon"
-      ],
-      relative: ["their sister", "their nephew", "grandma", "the twins", "their partner"]
-    },
-    limit: 50
-  },
-  {
-    type: "subject",
-    template: "[[timeframe]], ___ {have} [[task]] ready for review.",
-    slots: {
-      timeframe: [
-        "Later this afternoon",
-        "After the briefing",
-        "Once the meeting ends",
-        "Before the deadline",
-        "When the bell rings",
-        "At sunrise tomorrow",
-        "After the check-in call",
-        "Right before the shift change"
-      ],
-      task: [
-        "the onboarding packets",
-        "a full budget draft",
-        "notes from the interview",
-        "the choreography cues",
-        "the itinerary for the trip",
-        "a revised staffing plan"
-      ]
-    },
-    limit: 60
-  },
-  {
-    type: "object",
-    template: "The coordinator saved a seat for ___ [[locationPhrase]].",
-    slots: {
-      locationPhrase: [
-        "near the front row",
-        "by the sunny window",
-        "next to the sign-in table",
-        "close to the exit",
-        "in the quiet corner",
-        "across from the projector",
-        "beside the whiteboard"
-      ]
-    },
-    limit: 40
-  },
-  {
-    type: "object",
-    template: "I handed the signed forms to ___ [[timing]].",
-    slots: {
-      timing: [
-        "right after class",
-        "during lunch",
-        "before boarding",
-        "as the session ended",
-        "when the call started"
-      ]
-    },
-    limit: 40
-  },
-  {
-    type: "object",
-    template: "At the potluck, I set aside a plate for ___ near the window seat.",
-    limit: 35
-  },
-  {
-    type: "possAdj",
-    template: "We reviewed ___ [[item]] together [[setting]].",
-    slots: {
-      item: [
-        "lab report",
-        "design mockups",
-        "grant proposal",
-        "presentation slides",
-        "training outline"
-      ],
-      setting: [
-        "in the conference room",
-        "at the coffee shop",
-        "after practice",
-        "before the webinar",
-        "during office hours"
-      ]
-    },
-    limit: 50
-  },
-  {
-    type: "possAdj",
-    template: "___ schedule includes [[commitment]] this month.",
-    slots: {
-      commitment: [
-        "weekly tutoring",
-        "a double shift",
-        "community outreach",
-        "the weekend retreat",
-        "an extra rehearsal",
-        "office hours with the team",
-        "a late-night study group"
-      ]
-    },
-    limit: 40
-  },
-  {
-    type: "reflexive",
-    template: "{name} reminded ___ to take breaks [[context]].",
-    slots: {
-      context: [
-        "during finals",
-        "while traveling",
-        "between appointments",
-        "after long rehearsals",
-        "during the hackathon",
-        "through the night shift",
-        "while hosting guests"
-      ]
-    },
-    limit: 40
-  },
-  {
-    type: "reflexive",
-    template: "While cooking, {name} kept ___ safe from the hot pan.",
-    limit: 30
-  }
-];
-
-const extinctionRecipes = [
-  {
-    template: "[[leadIn]]{name} said {subject} {have} already sent {possAdj} notes.",
-    slots: {
-      leadIn: ["", "Earlier, ", "Before the review, ", "During onboarding, "]
-    },
-    limit: 50
-  },
-  {
-    template: "[[leadIn]]I handed the keys to {object} because it was not {possAdj} turn.",
-    slots: {
-      leadIn: ["", "After the briefing, ", "While we cleaned up, "]
-    },
-    limit: 45
-  },
-  {
-    template: "After the meeting, {subject} thanked everyone and reminded {reflexive} to rest.",
-    limit: 45
-  },
-  {
-    template: "[[leadIn]]The backpack on the chair is {possPron}, so please give it to {object}.",
-    slots: {
-      leadIn: ["", "By the sign-in table, ", "Near the lockers, "]
-    },
-    limit: 45
-  },
-  {
-    template: "When someone mentioned {deadname}, {subject} calmly reminded them about {possAdj} correct name.",
-    limit: 50
-  },
-  {
-    template:
-      "[[leadIn]]{name} explained that {subject} {be} covering the desk while the badge office reprinted {possAdj} badge.",
-    slots: {
-      leadIn: [
-        "",
-        "During the shift change, ",
-        "Before the concert, ",
-        "As the meeting wrapped up, "
-      ]
-    },
-    limit: 40
-  },
-  {
-    template: "[[leadIn]]{name} explained that {subject} {be} updating {possAdj} records this week.",
-    slots: {
-      leadIn: ["", "After the planning session, ", "During the orientation, "]
-    },
-    limit: 50
-  },
-  {
-    template: "After hearing {deadname}, {subject} corrected the form and asked everyone to share {possPron} pronouns again before thanking {object}.",
-    limit: 45
-  },
-  {
-    template: "In the waiting room, {name} noted that {subject} {be} next in line and waved {object} over.",
-    limit: 45
-  },
-  {
-    template: "We reserved a badge for {object} because {subject} confirmed {possAdj} attendance.",
-    limit: 45
-  },
-  {
-    template:
-      "[[leadIn]]{name} reminded the host that {subject} {were} bringing {possAdj} laptop so {object} could queue the slides {reflexive}.",
-    slots: {
-      leadIn: ["", "At the registration desk, ", "Later that afternoon, "]
-    },
-    limit: 45
-  },
-  {
-    template: "Even though the form listed {deadname}, everyone used {possAdj} correct details afterward.",
-    limit: 50
-  },
-  {
-    template: "During game night, I reminded the team that the winning score was definitely {possPron}, not anyone else's.",
-    limit: 40
-  },
-  {
-    template: "During roll call, the instructor waited for {object} to state {possAdj} name.",
-    limit: 45
-  },
-  {
-    template: "{name} reminded the group that {subject} {were} focused on {possAdj} presentation timing.",
-    limit: 45
-  }
-];
-
-const editingRecipes = [
-  {
-    template: "{name} reminded the crew that {subject} {be} accountable for {possAdj} choices.",
-    wrongType: "subject",
-    limit: 40
-  },
-  {
-    template: "The director, {name}, introduced {reflexive} and asked us to support {object} on {possAdj} first day.",
-    wrongType: "reflexive",
-    limit: 40
-  },
-  {
-    template: "When the bell rang, I checked whether the notebook was truly {possPron} before returning it to {object}.",
-    wrongType: "possPron",
-    limit: 40
-  },
-  {
-    template: "During the fundraiser {name} organized, the team thanked {object} for sharing {possAdj} story about the project.",
-    wrongType: "object",
-    limit: 40
-  },
-  {
-    template: "{name} promised {reflexive} to slow down and rest after the long shift.",
-    wrongType: "reflexive",
-    limit: 40
-  },
-  {
-    template: "{subject} left {possAdj} backpack at the cafe, so I handed it back to {object} later.",
-    wrongType: "possAdj",
-    limit: 40
-  },
-  {
-    template: "During rehearsal, the choreographer praised {name} because {subject} {have} improved {possAdj} timing.",
-    wrongType: "subject",
-    limit: 40
-  }
-];
-
 function generateMappingTrials(limitCount = 60) {
-  const { pronouns } = appState.setup;
+  const { pronouns, verbGrammar, targetName, deadname } = appState.setup;
   if (!limitCount) return [];
 
-  const templates = shuffle(expandRecipes(mappingRecipes, 80)).slice(0, limitCount);
+  const roles = ["subject", "object", "possAdj", "reflexive"];
+  const patternsByRole = roles.reduce((acc, role) => {
+    acc[role] = getPatternsForModeAndRole("mapping", role);
+    return acc;
+  }, {});
 
-  const grammar = appState.setup.verbGrammar || inferGrammarFromPronoun(pronouns.subject);
   const distractorPool = {
     subject: ["he", "she", "they", pronouns.object, pronouns.possAdj],
     object: ["him", "her", "them", pronouns.subject, pronouns.reflexive],
@@ -1019,17 +724,30 @@ function generateMappingTrials(limitCount = 60) {
     reflexive: ["himself", "herself", "themselves", pronouns.object]
   };
 
-  return templates.map((tpl) => {
-    const correct =
-      tpl.type === "subject"
-        ? pronouns.subject
-        : tpl.type === "object"
-        ? pronouns.object
-        : tpl.type === "possAdj"
-        ? pronouns.possAdj
-        : pronouns.reflexive;
+  const trials = [];
+  let safety = 0;
+  const patternsAvailable = roles.some((role) => (patternsByRole[role] || []).length);
+  if (!patternsAvailable) return trials;
 
-    const pool = distractorPool[tpl.type] || [];
+  while (trials.length < limitCount && safety < limitCount * 4) {
+    safety += 1;
+    const role = roles[Math.floor(Math.random() * roles.length)];
+    const patterns = patternsByRole[role] || [];
+    if (!patterns.length) continue;
+
+    const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+    const correct = pronouns[role];
+    if (!correct) continue;
+
+    const sentence = buildSentence(pattern, pronouns, {
+      name: targetName,
+      deadname,
+      grammar: verbGrammar,
+      hint: "name"
+    });
+
+    const blanked = sentence.replace(new RegExp(`\\b${escapeRegExp(correct)}\\b`), "___");
+    const pool = distractorPool[role] || [];
     const distractors = shuffle(
       pool.filter((p) => p && p.toLowerCase() !== (correct || "").toLowerCase())
     ).slice(0, 3);
@@ -1040,49 +758,77 @@ function generateMappingTrials(limitCount = 60) {
     });
     const options = shuffle([...optionSet]).slice(0, 4);
 
-    const processed = applyLanguageRules(tpl.text, { pronouns, grammar });
-    return {
+    trials.push({
       type: "mapping",
-      text: processed,
+      text: blanked,
       correct,
       options,
-      blanks: 1
-    };
-  });
+      blanks: 1,
+      role
+    });
+  }
+
+  return trials;
 }
 
 function generateExtinctionTrials(limitCount = 40) {
-  const { pronouns } = appState.setup;
+  const { pronouns, verbGrammar, targetName, deadname, extinctionPronounSets } = appState.setup;
 
   if (!limitCount) return [];
 
-  const baseTemplates = shuffle(expandRecipes(extinctionRecipes, 80))
-    .slice(0, limitCount)
-    .map((tpl) => tpl.text);
+  const patterns = shuffle(getPatternsForModeAndRole("extinction"));
+  if (!patterns.length) return [];
 
   const fallbackTrap = buildTrapPronounSet();
   const trapSets =
-    (appState.setup.extinctionPronounSets || []).filter((set) =>
+    (extinctionPronounSets || []).filter((set) =>
       Object.values(set || {}).some((v) => v && v.trim())
     ) || [];
   const trapPool = trapSets.length ? trapSets : [fallbackTrap];
-  const correctGrammar = inferGrammarFromPronoun(pronouns.subject) || appState.setup.verbGrammar;
 
-  return baseTemplates.map((tpl, idx) => {
-    const useCorrect = idx % 2 === 0;
+  const trials = [];
+  let idx = 0;
+
+  while (trials.length < limitCount) {
+    const pattern = patterns[idx % patterns.length];
     const trapSet = { ...fallbackTrap, ...trapPool[idx % trapPool.length] };
-    const trapGrammar = inferGrammarFromPronoun(trapSet.subject) || correctGrammar;
-    const filled = applyLanguageRules(tpl, { pronouns, grammar: correctGrammar });
-    const wrongVersion = applyLanguageRules(tpl, { pronouns: trapSet, grammar: trapGrammar });
-    const text = useCorrect ? filled : wrongVersion;
+    const trapGrammar = inferGrammarFromPronoun(trapSet.subject) || verbGrammar;
 
-    return {
+    const correctSentence = buildSentence(pattern, pronouns, {
+      name: targetName,
+      deadname,
+      grammar: verbGrammar,
+      hint: "name"
+    });
+
+    const wrongSentence = buildSentence(pattern, trapSet, {
+      name: targetName,
+      deadname,
+      grammar: trapGrammar,
+      hint: "name"
+    });
+
+    trials.push({
       type: "extinction",
-      text,
-      isCorrect: useCorrect,
-      mode: idx % 2 === 0 ? "flag" : "gng"
-    };
-  });
+      text: correctSentence,
+      isCorrect: true,
+      mode: trials.length % 2 === 0 ? "flag" : "gng"
+    });
+
+    if (trials.length >= limitCount) break;
+
+    trials.push({
+      type: "extinction",
+      text: wrongSentence,
+      isCorrect: false,
+      mode: trials.length % 2 === 0 ? "flag" : "gng"
+    });
+
+    idx += 1;
+    if (idx > limitCount * 2) break;
+  }
+
+  return trials.slice(0, limitCount);
 }
 
 function generateDualTrials(sessionSeconds) {
@@ -1097,7 +843,7 @@ function generateDualTrials(sessionSeconds) {
 }
 
 function generateEditingTrials(limitCount = 35) {
-  const { pronouns, extinctionPronounSets } = appState.setup;
+  const { pronouns, extinctionPronounSets, verbGrammar, targetName, deadname } = appState.setup;
   const baseWrongPools = {
     subject: ["he", "she", "they", "ze", "xe"],
     object: ["him", "her", "them", "zir", "xem"],
@@ -1121,56 +867,92 @@ function generateEditingTrials(limitCount = 35) {
 
   if (!limitCount) return [];
 
-  const templates = shuffle(expandRecipes(editingRecipes, 80)).slice(0, limitCount);
+  const patterns = shuffle(getPatternsForModeAndRole("editing"));
+  if (!patterns.length) return [];
 
-  return templates.map((tpl) => {
-    const correctPronoun = pronouns[tpl.wrongType];
-    const pool = wrongPools[tpl.wrongType] || [];
-    const preferredTrap =
-      (extinctionPronounSets || [])
-        .map((set) => (set[tpl.wrongType] || "").trim())
-        .filter(Boolean)[0] || "";
-    const normalizedCorrect = (correctPronoun || "").toLowerCase();
+  const trials = [];
+  let idx = 0;
 
-    const poolCandidates = pool.filter(
-      (p) => !normalizedCorrect || p.toLowerCase() !== normalizedCorrect
+  while (trials.length < limitCount && patterns.length) {
+    const pattern = patterns[idx % patterns.length];
+    const roles = [...(pattern.pronounRolesUsed || [])];
+    if (!roles.length) {
+      idx += 1;
+      if (idx > patterns.length * 2) break;
+      continue;
+    }
+
+    const shuffledRoles = shuffle([...roles]);
+    const corruptCount = Math.min(
+      shuffledRoles.length,
+      Math.random() > 0.6 && shuffledRoles.length > 1 ? 2 : 1
     );
+    const targetRoles = shuffledRoles.slice(0, corruptCount);
 
-    const wrong =
-      (preferredTrap && preferredTrap.toLowerCase() !== normalizedCorrect && preferredTrap) ||
-      poolCandidates[Math.floor(Math.random() * poolCandidates.length)] ||
-      pool[0] ||
-      "";
-    const pronounSetWithWrong = { ...pronouns, [tpl.wrongType]: wrong };
-    const subjectInSentence = tpl.wrongType === "subject" ? wrong : pronouns.subject;
-    const grammar = inferGrammarFromPronoun(subjectInSentence) || appState.setup.verbGrammar;
-    const sentence = applyLanguageRules(tpl.text, {
-      pronouns: pronounSetWithWrong,
-      grammar
+    const wrongEntries = [];
+    targetRoles.forEach((role) => {
+      const correctPronoun = pronouns[role];
+      const pool = wrongPools[role] || [];
+      const preferredTrap =
+        (extinctionPronounSets || [])
+          .map((set) => (set[role] || "").trim())
+          .filter(Boolean)[0] || "";
+      const normalizedCorrect = (correctPronoun || "").toLowerCase();
+      const candidates = pool.filter((p) => !normalizedCorrect || p.toLowerCase() !== normalizedCorrect);
+      const wrong =
+        (preferredTrap && preferredTrap.toLowerCase() !== normalizedCorrect && preferredTrap) ||
+        candidates[Math.floor(Math.random() * candidates.length)] ||
+        pool[0] ||
+        "";
+      if (!wrong || wrong.toLowerCase() === normalizedCorrect) return;
+      wrongEntries.push({ type: role, correct: correctPronoun, wrong });
     });
 
-    const distractors = shuffle(
-      (pool || []).filter(
-        (p) =>
-          p &&
-          p.toLowerCase() !== wrong.toLowerCase() &&
-          (!correctPronoun || p.toLowerCase() !== correctPronoun.toLowerCase())
-      )
-    ).slice(0, 2);
-    const options = shuffle([
-      ...new Set([correctPronoun, wrong, ...distractors].filter(Boolean))
-    ]);
+    if (!wrongEntries.length) {
+      idx += 1;
+      continue;
+    }
 
-    return {
+    const baseSentence = buildSentence(pattern, pronouns, {
+      name: targetName,
+      deadname,
+      grammar: verbGrammar,
+      hint: "name"
+    });
+
+    let mutated = baseSentence;
+    wrongEntries.forEach((entry) => {
+      const patternRegex = new RegExp(`\\b${escapeRegExp(entry.correct || "")}\\b`);
+      mutated = mutated.replace(patternRegex, entry.wrong);
+    });
+
+    const optionSet = new Set();
+    wrongEntries.forEach((entry) => {
+      optionSet.add(entry.correct);
+      optionSet.add(entry.wrong);
+      (wrongPools[entry.type] || []).forEach((p) => optionSet.add(p));
+    });
+    Object.values(pronouns || {}).forEach((p) => optionSet.add(p));
+
+    const options = shuffle([...optionSet].filter(Boolean));
+    const primary = wrongEntries[0];
+
+    trials.push({
       type: "editing",
-      text: sentence,
-      correct: correctPronoun,
-      wrong,
-      wrongType: tpl.wrongType,
-      wrongWord: wrong,
-      options
-    };
-  });
+      text: mutated,
+      correct: primary?.correct,
+      wrong: primary?.wrong,
+      wrongType: primary?.type,
+      wrongWord: primary?.wrong,
+      wrongWords: wrongEntries,
+      options,
+      correctSubject: pronouns.subject
+    });
+
+    idx += 1;
+  }
+
+  return trials;
 }
 
 function calculateTrialPlan(selectedModes, sessionMinutes) {
@@ -1528,23 +1310,30 @@ function renderDualTrial(trial) {
     scheduleCue();
   };
 
-  const pronounTemplates = [
-    "{subject} {have} finished {possAdj} report.",
-    "I reminded {object} that the seat was {possPron}.",
-    "{subject} coached {reflexive} to pace carefully.",
-    "Please send {possAdj} file so {subject} can review.",
-    "{name} said {subject} {were} proud of {reflexive}."
-  ];
+  const pronounPatterns = getPatternsForModeAndRole("dual");
 
   const fillSentence = () => {
     let text = "";
     let attempts = 0;
     do {
-      const tpl = pronounTemplates[Math.floor(Math.random() * pronounTemplates.length)];
       const useCorrect = Math.random() > 0.4;
       const set = useCorrect ? pronouns : trapSet;
       const grammar = inferGrammarFromPronoun(set.subject) || appState.setup.verbGrammar;
-      text = applyLanguageRules(tpl, { pronouns: set, grammar });
+      const pattern =
+        pronounPatterns && pronounPatterns.length
+          ? pronounPatterns[Math.floor(Math.random() * pronounPatterns.length)]
+          : null;
+      text = pattern
+        ? buildSentence(pattern, set, {
+            name: appState.setup.targetName,
+            deadname: appState.setup.deadname,
+            grammar,
+            hint: "name"
+          })
+        : applyLanguageRules("{subject} {have} finished {possAdj} report.", {
+            pronouns: set,
+            grammar
+          });
       sentence.dataset.correct = useCorrect ? "true" : "false";
       attempts += 1;
     } while (text === activeSentence && attempts < 6);
@@ -1674,7 +1463,14 @@ function renderEditingTrial(trial) {
   const requiredIndices = new Set();
   const verbIndices = new Set();
   const currentTokens = [...tokens];
-  let currentSubjectGrammar = inferGrammarFromPronoun(trial.correct || appState.setup.pronouns.subject);
+  const wrongEntries = Array.isArray(trial.wrongWords) && trial.wrongWords.length
+    ? trial.wrongWords
+    : trial.wrongWord
+    ? [{ wrong: trial.wrongWord, correct: trial.correct, type: trial.wrongType }]
+    : [];
+  let currentSubjectGrammar = inferGrammarFromPronoun(
+    trial.correctSubject || appState.setup.pronouns.subject
+  );
 
   const verbOptions = {
     is: ["is", "are"],
@@ -1691,7 +1487,12 @@ function renderEditingTrial(trial) {
     const fromSetup = Object.values(appState.setup.pronouns || {});
     const fromExtinction = (appState.setup.extinctionPronounSets || [])
       .flatMap((set) => Object.values(set || {}));
-    const fromTrial = [trial.correct, trial.wrong, ...(trial.options || [])];
+    const fromTrial = [
+      trial.correct,
+      trial.wrong,
+      ...wrongEntries.flatMap((entry) => [entry.correct, entry.wrong]),
+      ...(trial.options || [])
+    ];
 
     return new Set(
       [...fromSetup, ...fromExtinction, ...fromTrial]
@@ -1743,7 +1544,10 @@ function renderEditingTrial(trial) {
     const suffix = punctuationMatch ? punctuationMatch[0] : "";
     const baseToken = punctuationMatch ? tok.slice(0, -suffix.length) : tok;
     const normalized = baseToken.toLowerCase();
-    const isWrong = normalized === trial.wrongWord.toLowerCase();
+    const wrongEntry = wrongEntries.find(
+      (entry) => normalized === (entry.wrong || "").toLowerCase()
+    );
+    const isWrong = Boolean(wrongEntry);
     const isVerbSwitchable = Boolean(verbOptions[normalized]);
     if (isVerbSwitchable) verbIndices.add(idx);
     const isPronounToken = pronounPool.has(normalized);
@@ -1762,10 +1566,7 @@ function renderEditingTrial(trial) {
       );
       const baseOptions = isVerbSwitchable
         ? verbOptions[normalized] || [normalized]
-        : [...(trial.options || [])];
-      if (!isVerbSwitchable) {
-        baseOptions.push(baseToken);
-      }
+        : [...new Set([...(trial.options || []), wrongEntry?.correct, baseToken])];
       const options = [...new Set(baseOptions.filter(Boolean))];
       options.forEach((o) => {
         const opt = document.createElement("option");
@@ -1778,14 +1579,16 @@ function renderEditingTrial(trial) {
 
       const markState = (value) => {
         const normalizedValue = value.toLowerCase();
-        if (isWrong && trial.wrongType === "subject") {
+        if (isWrong && wrongEntry?.type === "subject") {
           currentSubjectGrammar = inferGrammarFromPronoun(normalizedValue);
         }
         currentTokens[idx] = `${value}${suffix}`;
         const expectedVerb = isVerbSwitchable
           ? expectedVerbForGrammar(normalizedValue, currentSubjectGrammar)
           : normalizedValue;
-        const isCorrect = isWrong ? value === trial.correct : normalizedValue === expectedVerb;
+        const isCorrect = isWrong
+          ? normalizedValue === (wrongEntry?.correct || "").toLowerCase()
+          : normalizedValue === expectedVerb;
         corrections.set(idx, { required: requiredIndices.has(idx), valid: isCorrect });
         if (isWrong) {
           select.classList.toggle("incorrect", !isCorrect);
@@ -2140,11 +1943,9 @@ if (typeof module !== "undefined" && module.exports) {
     grammarLexicon,
     inferGrammarFromPronoun,
     resolveGrammar,
-    expandRecipes,
-    mappingRecipes,
-    extinctionRecipes,
-    editingRecipes,
     generateMappingTrials,
+    generateExtinctionTrials,
+    generateEditingTrials,
     appState
   };
 }
