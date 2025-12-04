@@ -107,7 +107,6 @@ const appState = {
       possPron: "",
       reflexive: ""
     },
-    theyReflexive: "themself",
     verbGrammar: "auto",
     extinctionPronouns: {
       subject: "",
@@ -155,8 +154,6 @@ const pronounPresetSelect = doc ? doc.getElementById("pronounPreset") : null;
 const extinctionPresetSelect = doc ? doc.getElementById("extinctionPreset") : null;
 const extinctionCustomFields = doc ? doc.getElementById("extinction-custom-fields") : { classList: { toggle: () => {} } };
 const extinctionChips = doc ? doc.getElementById("extinction-chips") : null;
-const theyReflexiveField = doc ? doc.getElementById("they-reflexive-preference") : null;
-const theyReflexiveRadios = doc ? doc.querySelectorAll('input[name="theyReflexive"]') : [];
 const pronounInputs = {
   subject: doc ? doc.querySelector('input[name="subject"]') : null,
   object: doc ? doc.querySelector('input[name="object"]') : null,
@@ -196,23 +193,6 @@ function setGrammar(value) {
   });
 }
 
-function getSelectedRadioValue(radios, fallback = "") {
-  const selected = Array.from(radios || []).find((radio) => radio.checked);
-  return selected ? selected.value : fallback;
-}
-
-function setTheyReflexive(value) {
-  theyReflexiveRadios.forEach((radio) => {
-    radio.checked = radio.value === value;
-  });
-}
-
-function toggleTheyReflexiveVisibility(subjectValue) {
-  if (!theyReflexiveField) return;
-  const normalized = (subjectValue || "").trim().toLowerCase();
-  theyReflexiveField.classList.toggle("hidden", normalized !== "they");
-}
-
 function getSelectedValues(selectEl) {
   if (!selectEl) return [];
   return Array.from(selectEl.selectedOptions || []).map((opt) => opt.value);
@@ -222,17 +202,11 @@ function applyPronounPreset(key) {
   const preset = pronounPresets.find((p) => p.key === key);
   if (!preset || preset.custom) return;
   const pronouns = { ...preset.pronouns };
-  if ((pronouns.subject || "").toLowerCase() === "they") {
-    const preferredReflexive =
-      getSelectedRadioValue(theyReflexiveRadios, appState.setup.theyReflexive) || pronouns.reflexive;
-    pronouns.reflexive = preferredReflexive;
-  }
 
   Object.entries(pronouns).forEach(([k, v]) => {
     if (pronounInputs[k]) pronounInputs[k].value = v;
   });
   setGrammar(preset.verbGrammar);
-  toggleTheyReflexiveVisibility(pronouns.subject);
 }
 
 function applyExtinctionPreset(keys) {
@@ -511,7 +485,6 @@ function collectSetupPayload(formData) {
       possPron: (formData.get("possPron") || "").trim(),
       reflexive: (formData.get("reflexive") || "").trim()
     },
-    theyReflexive: formData.get("theyReflexive") || "themself",
     verbGrammar: formData.get("verbGrammar") || "auto",
     extinctionPresets,
     extinctionCustom: {
@@ -540,7 +513,6 @@ function encodeSetupPayload(payload) {
   if (payload.oldRelation) params.set("oldrel", payload.oldRelation);
   if (payload.pronounPreset) params.set("preset", payload.pronounPreset);
   params.set("grammar", payload.verbGrammar || "auto");
-  if (payload.theyReflexive) params.set("theyrefl", payload.theyReflexive);
 
   Object.entries(payload.pronouns || {}).forEach(([key, value]) => {
     if (value) params.set(`pro_${key}`, value);
@@ -569,7 +541,6 @@ function decodeSetupPayload(search) {
 
   const params = new URLSearchParams(query);
   const rawMinutes = Number(params.get("minutes"));
-  const theyReflexive = params.get("theyrefl") || "themself";
 
   const testStyles = {
     mapping: params.has("test_mapping"),
@@ -592,11 +563,10 @@ function decodeSetupPayload(search) {
     pronouns: {
       subject: params.get("pro_subject") || "",
       object: params.get("pro_object") || "",
-      possAdj: params.get("pro_possAdj") || "",
-      possPron: params.get("pro_possPron") || "",
-      reflexive: params.get("pro_reflexive") || ""
-    },
-    theyReflexive,
+    possAdj: params.get("pro_possAdj") || "",
+    possPron: params.get("pro_possPron") || "",
+    reflexive: params.get("pro_reflexive") || ""
+  },
     verbGrammar: params.get("grammar") || "auto",
     extinctionPresets,
     extinctionCustom: {
@@ -626,12 +596,6 @@ function applySetupPayloadToForm(payload) {
   Object.entries(pronounInputs || {}).forEach(([key, input]) => {
     if (input) input.value = (payload.pronouns && payload.pronouns[key]) || "";
   });
-
-  if (payload.theyReflexive) {
-    setTheyReflexive(payload.theyReflexive);
-  }
-
-  toggleTheyReflexiveVisibility(payload.pronouns && payload.pronouns.subject);
 
   setGrammar(payload.verbGrammar || "auto");
 
@@ -692,7 +656,6 @@ function parseSetup(formData) {
   appState.setup.deadname = formData.get("deadname").trim();
   appState.setup.relation = (formData.get("relation") || "").trim();
   appState.setup.oldRelation = (formData.get("oldRelation") || "").trim();
-  const theyReflexive = formData.get("theyReflexive") || "themself";
   const pronouns = {
     subject: formData.get("subject").trim(),
     object: formData.get("object").trim(),
@@ -701,12 +664,7 @@ function parseSetup(formData) {
     reflexive: formData.get("reflexive").trim()
   };
 
-  if ((pronouns.subject || "").trim().toLowerCase() === "they") {
-    pronouns.reflexive = theyReflexive;
-  }
-
   appState.setup.pronouns = pronouns;
-  appState.setup.theyReflexive = theyReflexive;
   appState.setup.verbGrammar = formData.get("verbGrammar") || "auto";
   const extinctionPresetKeys = formData.getAll("extinctionPreset").filter(Boolean);
   const selectedExtinctions = extinctionPresetKeys.length ? extinctionPresetKeys : ["none"];
@@ -2104,24 +2062,6 @@ if (pronounPresetSelect)
   pronounPresetSelect.addEventListener("change", (e) => applyPronounPreset(e.target.value));
 if (extinctionPresetSelect)
   extinctionPresetSelect.addEventListener("change", () => applyExtinctionPreset(selectedExtinctionValues()));
-
-if (pronounInputs.subject) {
-  toggleTheyReflexiveVisibility(pronounInputs.subject.value);
-  pronounInputs.subject.addEventListener("input", (e) => {
-    toggleTheyReflexiveVisibility(e.target.value);
-  });
-}
-
-if (theyReflexiveRadios.length) {
-  theyReflexiveRadios.forEach((radio) => {
-    radio.addEventListener("change", (e) => {
-      appState.setup.theyReflexive = e.target.value;
-      if ((pronounInputs.subject?.value || "").trim().toLowerCase() === "they") {
-        pronounInputs.reflexive.value = e.target.value;
-      }
-    });
-  });
-}
 
 if (setupForm) {
   setupForm.addEventListener("submit", (e) => {
