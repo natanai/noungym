@@ -245,6 +245,53 @@ select.dropdown {
   background-repeat: no-repeat;
 }
 
+select[multiple].multi-select {
+  min-height: 120px;
+  padding-right: 28px;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  border-color: rgba(99, 102, 241, 0.25);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+select[multiple].multi-select option {
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin: 2px 0;
+}
+
+select[multiple].multi-select option:checked {
+  background: rgba(99, 102, 241, 0.16);
+  color: var(--text);
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(67, 56, 202, 0.08);
+  color: var(--text);
+  border: 1px solid rgba(67, 56, 202, 0.15);
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: -0.01em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.chip.muted {
+  background: #e2e8f0;
+  color: var(--muted);
+  border-color: transparent;
+}
+
 label input:focus,
 textarea:focus,
 select:focus {
@@ -390,6 +437,22 @@ legend {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+}
+
+.test-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ghost.danger {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #b91c1c;
+}
+
+.ghost.danger:hover {
+  border-color: #ef4444;
+  color: #991b1b;
 }
 
 .label {
