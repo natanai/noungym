@@ -121,7 +121,8 @@ const appState = {
   currentTrialIndex: 0,
   results: { mapping: [], extinction: [], dual: [], editing: [] },
   dualTimers: { number: null, pronoun: null, block: null, progress: null },
-  activeDualCleanup: null
+  activeDualCleanup: null,
+  sentenceUsage: { patterns: new Set(), sentences: new Set() }
 };
 
 const defaultSessionMinutes = 5;
@@ -443,6 +444,43 @@ function shuffle(arr) {
     .map(({ item }) => item);
 }
 
+function resetSentenceUsage() {
+  appState.sentenceUsage = { patterns: new Set(), sentences: new Set() };
+}
+
+function getSentenceUsage() {
+  if (!appState.sentenceUsage || typeof appState.sentenceUsage !== "object") {
+    resetSentenceUsage();
+  }
+  return appState.sentenceUsage;
+}
+
+function isPatternUsed(pattern) {
+  const usage = getSentenceUsage();
+  return pattern && pattern.id && usage.patterns.has(pattern.id);
+}
+
+function unusedPatternCount(patterns = []) {
+  return (patterns || []).filter((p) => !isPatternUsed(p)).length;
+}
+
+function markSentenceUsage(pattern, sentence = "") {
+  const usage = getSentenceUsage();
+  if (pattern && pattern.id) usage.patterns.add(pattern.id);
+  if (sentence) usage.sentences.add(sentence.trim());
+}
+
+function isSentenceUsed(sentence = "") {
+  const usage = getSentenceUsage();
+  return usage.sentences.has(sentence.trim());
+}
+
+function prioritizePatterns(patterns = []) {
+  const fresh = (patterns || []).filter((p) => !isPatternUsed(p));
+  const seen = (patterns || []).filter((p) => isPatternUsed(p));
+  return [...shuffle(fresh), ...shuffle(seen)];
+}
+
 function escapeRegExp(str = "") {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -730,12 +768,12 @@ function generateMappingTrials(limitCount = 60) {
 
   const roles = ["subject", "object", "possAdj", "reflexive"];
   const patternsByRole = roles.reduce((acc, role) => {
-    acc[role] = getPatternsForModeAndRole("mapping", role);
+    acc[role] = prioritizePatterns(getPatternsForModeAndRole("mapping", role));
     return acc;
   }, {});
 
   const patternQueues = roles.reduce((acc, role) => {
-    acc[role] = shuffle([...(patternsByRole[role] || [])]);
+    acc[role] = prioritizePatterns([...(patternsByRole[role] || [])]);
     return acc;
   }, {});
 
@@ -752,8 +790,6 @@ function generateMappingTrials(limitCount = 60) {
   if (!patternsAvailable) return trials;
 
   let roleIndex = 0;
-  const seenSentences = new Set();
-
   while (trials.length < limitCount && safety < limitCount * 4) {
     safety += 1;
     const role = roles[roleIndex % roles.length];
@@ -762,7 +798,8 @@ function generateMappingTrials(limitCount = 60) {
     if (!patterns.length) continue;
 
     if (!patternQueues[role].length) {
-      patternQueues[role] = shuffle([...patterns]);
+      const preferred = prioritizePatterns([...patterns]);
+      patternQueues[role] = preferred.length ? preferred : shuffle([...patterns]);
     }
 
     const pattern = patternQueues[role].pop();
@@ -776,8 +813,9 @@ function generateMappingTrials(limitCount = 60) {
       hint: "name"
     });
 
-    if (seenSentences.has(sentence)) continue;
-    seenSentences.add(sentence);
+    if (isPatternUsed(pattern) && unusedPatternCount(patterns) > 0) continue;
+    if (isSentenceUsed(sentence)) continue;
+    markSentenceUsage(pattern, sentence);
 
     const blanked = sentence.replace(new RegExp(`\\b${escapeRegExp(correct)}\\b`), "___");
     const pool = distractorPool[role] || [];
@@ -809,7 +847,7 @@ function generateExtinctionTrials(limitCount = 40) {
 
   if (!limitCount) return [];
 
-  const patterns = shuffle(getPatternsForModeAndRole("extinction"));
+  const patterns = prioritizePatterns(getPatternsForModeAndRole("extinction"));
   if (!patterns.length) return [];
 
   const fallbackTrap = buildTrapPronounSet();
@@ -821,6 +859,7 @@ function generateExtinctionTrials(limitCount = 40) {
 
   const trials = [];
   let idx = 0;
+  let favorCorrect = true;
 
   while (trials.length < limitCount) {
     const pattern = patterns[idx % patterns.length];
@@ -841,24 +880,35 @@ function generateExtinctionTrials(limitCount = 40) {
       hint: "name"
     });
 
+    const candidates = [
+      { sentence: correctSentence, isCorrect: true },
+      { sentence: wrongSentence, isCorrect: false }
+    ].filter(({ sentence }) => !isSentenceUsed(sentence));
+
+    if (isPatternUsed(pattern) && unusedPatternCount(patterns) > 0) {
+      idx += 1;
+      if (idx > limitCount * 2) break;
+      continue;
+    }
+
+    const preferred = candidates.find((c) => c.isCorrect === favorCorrect) || candidates[0];
+    if (!preferred) {
+      idx += 1;
+      if (idx > limitCount * 2) break;
+      continue;
+    }
+
     trials.push({
       type: "extinction",
-      text: correctSentence,
-      isCorrect: true,
+      text: preferred.sentence,
+      isCorrect: preferred.isCorrect,
       mode: trials.length % 2 === 0 ? "flag" : "gng"
     });
+    markSentenceUsage(pattern, preferred.sentence);
 
-    if (trials.length >= limitCount) break;
-
-    trials.push({
-      type: "extinction",
-      text: wrongSentence,
-      isCorrect: false,
-      mode: trials.length % 2 === 0 ? "flag" : "gng"
-    });
-
+    favorCorrect = !favorCorrect;
     idx += 1;
-    if (idx > limitCount * 2) break;
+    if (idx > limitCount * 3) break;
   }
 
   return trials.slice(0, limitCount);
@@ -900,7 +950,7 @@ function generateEditingTrials(limitCount = 35) {
 
   if (!limitCount) return [];
 
-  const patterns = shuffle(getPatternsForModeAndRole("editing"));
+  const patterns = prioritizePatterns(getPatternsForModeAndRole("editing"));
   if (!patterns.length) return [];
 
   const trials = [];
@@ -908,6 +958,10 @@ function generateEditingTrials(limitCount = 35) {
 
   while (trials.length < limitCount && patterns.length) {
     const pattern = patterns[idx % patterns.length];
+    if (isPatternUsed(pattern) && unusedPatternCount(patterns) > 0) {
+      idx += 1;
+      continue;
+    }
     const roles = [...(pattern.pronounRolesUsed || [])];
     if (!roles.length) {
       idx += 1;
@@ -975,6 +1029,11 @@ function generateEditingTrials(limitCount = 35) {
     const options = shuffle([...optionSet].filter(Boolean));
     const primary = wrongEntries[0];
 
+    if (isSentenceUsed(mutated)) {
+      idx += 1;
+      continue;
+    }
+
     trials.push({
       type: "editing",
       text: mutated,
@@ -988,6 +1047,8 @@ function generateEditingTrials(limitCount = 35) {
       grammar: resolvedGrammar,
       patternId: pattern.id
     });
+
+    markSentenceUsage(pattern, mutated);
 
     idx += 1;
   }
@@ -1047,6 +1108,7 @@ function blendTrialBuckets(buckets) {
 }
 
 function buildTrials(selectedModes, sessionMinutes) {
+  resetSentenceUsage();
   const { counts, dualSeconds } = calculateTrialPlan(selectedModes, sessionMinutes);
 
   const buckets = [];
@@ -1366,19 +1428,21 @@ function renderDualTrial(trial) {
       }, 50);
   };
 
-  const pronounPatterns = getPatternsForModeAndRole("dual");
+  const pronounPatterns = prioritizePatterns(getPatternsForModeAndRole("dual"));
 
   const fillSentence = () => {
     let text = "";
     let attempts = 0;
+    let pattern = null;
     do {
       const useCorrect = Math.random() > 0.4;
       const set = useCorrect ? pronouns : trapSet;
       const grammar = inferGrammarFromPronoun(set.subject) || appState.setup.verbGrammar;
-      const pattern =
-        pronounPatterns && pronounPatterns.length
-          ? pronounPatterns[Math.floor(Math.random() * pronounPatterns.length)]
-          : null;
+      const pool =
+        unusedPatternCount(pronounPatterns) > 0
+          ? pronounPatterns.filter((p) => !isPatternUsed(p))
+          : pronounPatterns;
+      pattern = pool && pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
       text = pattern
         ? buildSentence(pattern, set, {
             name: appState.setup.targetName,
@@ -1392,9 +1456,15 @@ function renderDualTrial(trial) {
           });
       sentence.dataset.correct = useCorrect ? "true" : "false";
       attempts += 1;
-    } while (text === activeSentence && attempts < 6);
+    } while (
+      attempts < 8 &&
+      (text === activeSentence ||
+        isSentenceUsed(text) ||
+        (pattern && isPatternUsed(pattern) && unusedPatternCount(pronounPatterns) > 0))
+    );
     activeSentence = text;
     sentence.textContent = text;
+    markSentenceUsage(pattern, text);
   };
 
   const startNumberStream = () => {
@@ -2085,6 +2155,7 @@ function resetApp() {
   appState.trials = [];
   appState.currentTrialIndex = 0;
   appState.results = { mapping: [], extinction: [], dual: [], editing: [] };
+  resetSentenceUsage();
   trialContainer.innerHTML = "";
   trialCounter.textContent = "";
   setScreen("setup");
