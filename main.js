@@ -19,7 +19,7 @@ const pronounPresets = [
       object: "them",
       possAdj: "their",
       possPron: "theirs",
-      reflexive: "themselves"
+      reflexive: "themself"
     },
     verbGrammar: "singular"
   },
