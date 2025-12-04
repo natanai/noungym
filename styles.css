@@ -446,6 +446,16 @@ button.option:focus {
   transform: translateY(-1px);
 }
 
+button.option:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: #cbd5e1;
+  background: linear-gradient(135deg, #f8fafc 25%, #e2e8f0 100%);
+  color: #94a3b8;
+  transform: none;
+  box-shadow: inset 0 0 0 2px rgba(148, 163, 184, 0.35);
+}
+
 .feedback-correct {
   animation: flashGreen 0.25s ease;
 }
@@ -503,8 +513,9 @@ button.option:focus {
 
 .dual-timer {
   margin: 8px 0 4px;
-  color: var(--helper);
-  font-weight: 700;
+  color: #ef4444;
+  font-weight: 800;
+  letter-spacing: 0.02em;
 }
 
 .grid-two {
