@@ -842,6 +842,10 @@ button.option:disabled {
   border-radius: 10px;
 }
 
+.summary-card--chart {
+  background: #f6f5ff;
+}
+
 .stat-list {
   list-style: none;
   padding: 0;
@@ -863,6 +867,54 @@ button.option:disabled {
   display: block;
   color: var(--helper);
   margin-top: 4px;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.chart {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  min-height: 140px;
+}
+
+.chart-bar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 42px;
+}
+
+.chart-bar-fill {
+  width: 100%;
+  border-radius: 10px 10px 6px 6px;
+  background: var(--accent);
+  min-height: 6px;
+  transition: height 0.2s ease;
+}
+
+.chart-value {
+  font-weight: 800;
+  color: #1e1b4b;
+}
+
+.chart-label {
+  font-size: 12px;
+  color: var(--helper);
+  text-align: center;
+}
+
+.chart-caption {
+  margin: 0 0 6px;
+  font-weight: 800;
+  color: #1f2937;
 }
 
 .summary-grid.compact {
