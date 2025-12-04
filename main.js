@@ -276,6 +276,47 @@ const grammarLexicon = {
   }
 };
 
+function fillSlots(template, slots = {}) {
+  return Object.entries(slots).reduce((text, [key, value]) => {
+    const pattern = new RegExp(`\\[\\[${key}\\]\\]`, "g");
+    return text.replace(pattern, value);
+  }, template);
+}
+
+function expandRecipes(recipes, fallbackLimit = 60) {
+  const allTemplates = [];
+
+  recipes.forEach((recipe) => {
+    const slotKeys = Object.keys(recipe.slots || {});
+    let combinations = [{}];
+
+    slotKeys.forEach((key) => {
+      const values = recipe.slots[key] || [""];
+      const next = [];
+      combinations.forEach((combo) => {
+        values.forEach((value) => {
+          next.push({ ...combo, [key]: value });
+        });
+      });
+      combinations = next;
+    });
+
+    const limitedCombos = shuffle(combinations).slice(
+      0,
+      recipe.limit || fallbackLimit || combinations.length
+    );
+
+    limitedCombos.forEach((combo) => {
+      allTemplates.push({
+        ...recipe,
+        text: fillSlots(recipe.template, combo)
+      });
+    });
+  });
+
+  return allTemplates;
+}
+
 const languageTokenRegex = /\{([^}]+)\}/g;
 
 function applyLanguageRules(template, overrides = {}) {
@@ -396,22 +437,221 @@ function buildTrapPronounSet() {
   };
 }
 
+const mappingRecipes = [
+  {
+    type: "subject",
+    template: "[[leadIn]]___ {be} [[activity]] [[location]][[closing]]",
+    slots: {
+      leadIn: ["", "During practice, ", "At the start of the week, "],
+      activity: [
+        "leading the warmup",
+        "tracking the project milestones",
+        "handling the client emails",
+        "coordinating the carpool",
+        "organizing the shared files",
+        "reviewing the safety plan"
+      ],
+      location: [
+        "in the studio",
+        "at the library",
+        "at rehearsal",
+        "at the clinic",
+        "for the volunteers",
+        "at the community center"
+      ],
+      closing: [".", " today.", " before lunch."]
+    },
+    limit: 90
+  },
+  {
+    type: "subject",
+    template: "[[timeframe]], ___ {have} [[task]] ready for review.",
+    slots: {
+      timeframe: [
+        "Later this afternoon",
+        "After the briefing",
+        "Once the meeting ends",
+        "Before the deadline",
+        "When the bell rings"
+      ],
+      task: [
+        "the onboarding packets",
+        "a full budget draft",
+        "notes from the interview",
+        "the choreography cues",
+        "the itinerary for the trip"
+      ]
+    },
+    limit: 60
+  },
+  {
+    type: "object",
+    template: "The coordinator saved a seat for ___ [[locationPhrase]].",
+    slots: {
+      locationPhrase: [
+        "near the front row",
+        "by the sunny window",
+        "next to the sign-in table",
+        "close to the exit",
+        "in the quiet corner"
+      ]
+    },
+    limit: 40
+  },
+  {
+    type: "object",
+    template: "I handed the signed forms to ___ [[timing]].",
+    slots: {
+      timing: [
+        "right after class",
+        "during lunch",
+        "before boarding",
+        "as the session ended",
+        "when the call started"
+      ]
+    },
+    limit: 40
+  },
+  {
+    type: "possAdj",
+    template: "We reviewed ___ [[item]] together [[setting]].",
+    slots: {
+      item: [
+        "lab report",
+        "design mockups",
+        "grant proposal",
+        "presentation slides",
+        "training outline"
+      ],
+      setting: [
+        "in the conference room",
+        "at the coffee shop",
+        "after practice",
+        "before the webinar",
+        "during office hours"
+      ]
+    },
+    limit: 50
+  },
+  {
+    type: "possAdj",
+    template: "___ schedule includes [[commitment]] this month.",
+    slots: {
+      commitment: [
+        "weekly tutoring",
+        "a double shift",
+        "community outreach",
+        "the weekend retreat",
+        "an extra rehearsal"
+      ]
+    },
+    limit: 40
+  },
+  {
+    type: "reflexive",
+    template: "{name} reminded ___ to take breaks [[context]].",
+    slots: {
+      context: [
+        "during finals",
+        "while traveling",
+        "between appointments",
+        "after long rehearsals",
+        "during the hackathon"
+      ]
+    },
+    limit: 40
+  },
+  {
+    type: "reflexive",
+    template: "While cooking, {name} kept ___ safe from the hot pan.",
+    limit: 30
+  }
+];
+
+const extinctionRecipes = [
+  {
+    template: "{name} said {subject} {have} already sent {possAdj} notes.",
+    limit: 40
+  },
+  {
+    template: "I handed the keys to {object} because it was not {possAdj} turn.",
+    limit: 40
+  },
+  {
+    template: "After the meeting, {subject} thanked {object} and reminded {reflexive} to rest.",
+    limit: 40
+  },
+  {
+    template: "The backpack on the chair is {possPron}, so please give it to {object}.",
+    limit: 40
+  },
+  {
+    template: "When someone mentioned {deadname}, {subject} calmly reminded them about {possAdj} correct name.",
+    limit: 40
+  },
+  {
+    template: "{name} explained that {subject} {be} updating {possAdj} records this week.",
+    limit: 40
+  },
+  {
+    template: "We reserved a badge for {object} because {subject} confirmed {possAdj} attendance.",
+    limit: 40
+  },
+  {
+    template: "Even though the form listed {deadname}, everyone used {possAdj} correct details afterward.",
+    limit: 40
+  },
+  {
+    template: "During roll call, the instructor waited for {object} to state {possAdj} name.",
+    limit: 40
+  },
+  {
+    template: "{name} reminded the group that {subject} {were} focused on {possAdj} presentation timing.",
+    limit: 40
+  }
+];
+
+const editingRecipes = [
+  {
+    template: "{name} reminded the crew that {subject} {be} accountable for {possAdj} choices.",
+    wrongType: "subject",
+    limit: 40
+  },
+  {
+    template: "The director, {name}, introduced {reflexive} and asked us to support {object} on {possAdj} first day.",
+    wrongType: "reflexive",
+    limit: 40
+  },
+  {
+    template: "When the bell rang, I checked whether the notebook was truly {possPron} before returning it to {object}.",
+    wrongType: "possPron",
+    limit: 40
+  },
+  {
+    template: "{name} organized the fundraiser and invited {object} to share {possAdj} story.",
+    wrongType: "object",
+    limit: 40
+  },
+  {
+    template: "{name} promised {reflexive} to slow down and rest after the long shift.",
+    wrongType: "reflexive",
+    limit: 40
+  },
+  {
+    template: "{subject} left {possAdj} backpack at the cafe, so I handed it back to {object} later.",
+    wrongType: "possAdj",
+    limit: 40
+  },
+  {
+    template: "During rehearsal, the choreographer praised {name} because {subject} {have} improved {possAdj} timing.",
+    wrongType: "subject",
+    limit: 40
+  }
+];
+
 function generateMappingTrials() {
   const { pronouns } = appState.setup;
-  const templates = [
-    { type: "subject", text: "___ {be} running a little late." },
-    { type: "subject", text: "___ {have} a really cool style." },
-    { type: "subject", text: "___ always work{s} hard." },
-    { type: "object", text: "I saw ___ at the store." },
-    { type: "object", text: "Please give this to ___." },
-    { type: "object", text: "We invited ___ to the party." },
-    { type: "possAdj", text: "That is ___ coat." },
-    { type: "possAdj", text: "___ dog is very cute." },
-    { type: "possAdj", text: "We should go to ___ house." },
-    { type: "reflexive", text: "{name} bought it for ___ as a treat." },
-    { type: "reflexive", text: "{name} {be:name} proud of ___ after the ceremony." },
-    { type: "subject", text: "I think ___ {are} next in line." }
-  ];
+  const templates = shuffle(expandRecipes(mappingRecipes, 80)).slice(0, 120);
 
   const grammar = appState.setup.verbGrammar || inferGrammarFromPronoun(pronouns.subject);
   const distractorPool = {
@@ -451,13 +691,9 @@ function generateMappingTrials() {
 function generateExtinctionTrials() {
   const { pronouns } = appState.setup;
 
-  const baseTemplates = [
-    "{name} said {subject} {have} already sent {possAdj} notes.",
-    "I handed the keys to {object} because it was not {possAdj} turn.",
-    "After the meeting, {subject} thanked {object} and reminded {reflexive} to rest.",
-    "The backpack on the chair is {possPron}, so please give it to {object}.",
-    "Someone used {deadname}, but {subject} corrected {object} and shared {possAdj} right name—focus on whether the pronouns are correct."
-  ];
+  const baseTemplates = shuffle(expandRecipes(extinctionRecipes, 80))
+    .slice(0, 100)
+    .map((tpl) => tpl.text);
 
   const trapSet = buildTrapPronounSet();
   const correctGrammar = inferGrammarFromPronoun(pronouns.subject) || appState.setup.verbGrammar;
@@ -498,24 +734,7 @@ function generateEditingTrials() {
     reflexive: ["himself", "herself", "themselves", "zirself", "xemself"]
   };
 
-  const templates = [
-    {
-      text: "{subject} left {possAdj} backpack at the cafe, so I handed it back to {object} later.",
-      wrongType: "possAdj"
-    },
-    {
-      text: "{name} reminded the crew that {subject} {be} accountable for {possAdj} choices.",
-      wrongType: "subject"
-    },
-    {
-      text: "The director, {name}, introduced {reflexive} and asked us to support {object} on {possAdj} first day.",
-      wrongType: "reflexive"
-    },
-    {
-      text: "When the bell rang, I checked whether the notebook was truly {possPron} before returning it to {object}.",
-      wrongType: "possPron"
-    }
-  ];
+  const templates = shuffle(expandRecipes(editingRecipes, 80)).slice(0, 100);
 
   return templates.map((tpl) => {
     const correctPronoun = pronouns[tpl.wrongType];
