@@ -1107,7 +1107,7 @@ function renderDualTrial(trial) {
   const startPronounStream = () => {
     if (pronounInterval) clearInterval(pronounInterval);
     fillSentence();
-    pronounInterval = setInterval(fillSentence, 4000);
+    pronounInterval = setInterval(fillSentence, 2000);
   };
 
   const pauseStreams = () => {
