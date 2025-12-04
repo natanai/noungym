@@ -166,6 +166,9 @@ const appState = {
   dualTimers: { number: null, pronoun: null, block: null }
 };
 
+const defaultSessionMinutes = 5;
+const pacingSecondsPerTrial = { mapping: 6, extinction: 6, editing: 7 };
+
 const summaryStorageKey = "noun-gym-last-summary";
 
 const setupScreen = document.getElementById("setup-screen");
@@ -442,14 +445,25 @@ const mappingRecipes = [
     type: "subject",
     template: "[[leadIn]]___ {be} [[activity]] [[location]][[closing]]",
     slots: {
-      leadIn: ["", "During practice, ", "At the start of the week, "],
+      leadIn: [
+        "",
+        "During practice, ",
+        "At the start of the week, ",
+        "Between appointments, ",
+        "Right before class, ",
+        "Earlier today, ",
+        "On the weekend, "
+      ],
       activity: [
         "leading the warmup",
         "tracking the project milestones",
         "handling the client emails",
         "coordinating the carpool",
         "organizing the shared files",
-        "reviewing the safety plan"
+        "reviewing the safety plan",
+        "checking the lighting cues",
+        "closing out the inventory",
+        "drafting the announcement"
       ],
       location: [
         "in the studio",
@@ -457,9 +471,11 @@ const mappingRecipes = [
         "at rehearsal",
         "at the clinic",
         "for the volunteers",
-        "at the community center"
+        "at the community center",
+        "at the makerspace",
+        "for the overnight shift"
       ],
-      closing: [".", " today.", " before lunch."]
+      closing: [".", " today.", " before lunch.", " once the doors opened."]
     },
     limit: 90
   },
@@ -472,14 +488,18 @@ const mappingRecipes = [
         "After the briefing",
         "Once the meeting ends",
         "Before the deadline",
-        "When the bell rings"
+        "When the bell rings",
+        "At sunrise tomorrow",
+        "After the check-in call",
+        "Right before the shift change"
       ],
       task: [
         "the onboarding packets",
         "a full budget draft",
         "notes from the interview",
         "the choreography cues",
-        "the itinerary for the trip"
+        "the itinerary for the trip",
+        "a revised staffing plan"
       ]
     },
     limit: 60
@@ -493,7 +513,9 @@ const mappingRecipes = [
         "by the sunny window",
         "next to the sign-in table",
         "close to the exit",
-        "in the quiet corner"
+        "in the quiet corner",
+        "across from the projector",
+        "beside the whiteboard"
       ]
     },
     limit: 40
@@ -542,7 +564,9 @@ const mappingRecipes = [
         "a double shift",
         "community outreach",
         "the weekend retreat",
-        "an extra rehearsal"
+        "an extra rehearsal",
+        "office hours with the team",
+        "a late-night study group"
       ]
     },
     limit: 40
@@ -556,7 +580,9 @@ const mappingRecipes = [
         "while traveling",
         "between appointments",
         "after long rehearsals",
-        "during the hackathon"
+        "during the hackathon",
+        "through the night shift",
+        "while hosting guests"
       ]
     },
     limit: 40
@@ -570,44 +596,56 @@ const mappingRecipes = [
 
 const extinctionRecipes = [
   {
-    template: "{name} said {subject} {have} already sent {possAdj} notes.",
-    limit: 40
+    template: "[[leadIn]]{name} said {subject} {have} already sent {possAdj} notes.",
+    slots: {
+      leadIn: ["", "Earlier, ", "Before the review, ", "During onboarding, "]
+    },
+    limit: 50
   },
   {
-    template: "I handed the keys to {object} because it was not {possAdj} turn.",
-    limit: 40
+    template: "[[leadIn]]I handed the keys to {object} because it was not {possAdj} turn.",
+    slots: {
+      leadIn: ["", "After the briefing, ", "While we cleaned up, "]
+    },
+    limit: 45
   },
   {
     template: "After the meeting, {subject} thanked {object} and reminded {reflexive} to rest.",
-    limit: 40
+    limit: 45
   },
   {
-    template: "The backpack on the chair is {possPron}, so please give it to {object}.",
-    limit: 40
+    template: "[[leadIn]]The backpack on the chair is {possPron}, so please give it to {object}.",
+    slots: {
+      leadIn: ["", "By the sign-in table, ", "Near the lockers, "]
+    },
+    limit: 45
   },
   {
     template: "When someone mentioned {deadname}, {subject} calmly reminded them about {possAdj} correct name.",
-    limit: 40
+    limit: 50
   },
   {
-    template: "{name} explained that {subject} {be} updating {possAdj} records this week.",
-    limit: 40
+    template: "[[leadIn]]{name} explained that {subject} {be} updating {possAdj} records this week.",
+    slots: {
+      leadIn: ["", "After the planning session, ", "During the orientation, "]
+    },
+    limit: 50
   },
   {
     template: "We reserved a badge for {object} because {subject} confirmed {possAdj} attendance.",
-    limit: 40
+    limit: 45
   },
   {
     template: "Even though the form listed {deadname}, everyone used {possAdj} correct details afterward.",
-    limit: 40
+    limit: 50
   },
   {
     template: "During roll call, the instructor waited for {object} to state {possAdj} name.",
-    limit: 40
+    limit: 45
   },
   {
     template: "{name} reminded the group that {subject} {were} focused on {possAdj} presentation timing.",
-    limit: 40
+    limit: 45
   }
 ];
 
@@ -649,9 +687,11 @@ const editingRecipes = [
   }
 ];
 
-function generateMappingTrials() {
+function generateMappingTrials(limitCount = 60) {
   const { pronouns } = appState.setup;
-  const templates = shuffle(expandRecipes(mappingRecipes, 80)).slice(0, 120);
+  if (!limitCount) return [];
+
+  const templates = shuffle(expandRecipes(mappingRecipes, 80)).slice(0, limitCount);
 
   const grammar = appState.setup.verbGrammar || inferGrammarFromPronoun(pronouns.subject);
   const distractorPool = {
@@ -688,11 +728,13 @@ function generateMappingTrials() {
   });
 }
 
-function generateExtinctionTrials() {
+function generateExtinctionTrials(limitCount = 40) {
   const { pronouns } = appState.setup;
 
+  if (!limitCount) return [];
+
   const baseTemplates = shuffle(expandRecipes(extinctionRecipes, 80))
-    .slice(0, 100)
+    .slice(0, limitCount)
     .map((tpl) => tpl.text);
 
   const trapSet = buildTrapPronounSet();
@@ -715,16 +757,17 @@ function generateExtinctionTrials() {
 }
 
 function generateDualTrials(sessionSeconds) {
+  const duration = Math.max(45, Math.round(sessionSeconds || 60));
   return [
     {
       type: "dual",
-      duration: sessionSeconds,
+      duration,
       startTime: null
     }
   ];
 }
 
-function generateEditingTrials() {
+function generateEditingTrials(limitCount = 35) {
   const { pronouns, extinctionPronounSets } = appState.setup;
   const wrongPools = {
     subject: ["he", "she", "they", "ze", "xe"],
@@ -734,7 +777,9 @@ function generateEditingTrials() {
     reflexive: ["himself", "herself", "themselves", "zirself", "xemself"]
   };
 
-  const templates = shuffle(expandRecipes(editingRecipes, 80)).slice(0, 100);
+  if (!limitCount) return [];
+
+  const templates = shuffle(expandRecipes(editingRecipes, 80)).slice(0, limitCount);
 
   return templates.map((tpl) => {
     const correctPronoun = pronouns[tpl.wrongType];
@@ -786,13 +831,53 @@ function generateEditingTrials() {
   });
 }
 
-function buildTrials(selectedModes, sessionLength) {
-  const trials = [];
-  if (selectedModes.mapping) trials.push(...generateMappingTrials());
-  if (selectedModes.extinction) trials.push(...generateExtinctionTrials());
-  if (selectedModes.dual) trials.push(...generateDualTrials(sessionLength));
-  if (selectedModes.editing) trials.push(...generateEditingTrials());
-  appState.trials = shuffle(trials);
+function calculateTrialPlan(selectedModes, sessionMinutes) {
+  const targetSeconds = Math.max(60, sessionMinutes * 60);
+  const activeModes = ["mapping", "extinction", "editing"].filter(
+    (mode) => selectedModes[mode]
+  );
+
+  const dualSeconds = selectedModes.dual
+    ? Math.max(45, Math.min(Math.round(targetSeconds * 0.35), targetSeconds - 30))
+    : 0;
+
+  const availableSeconds = Math.max(targetSeconds - dualSeconds, 30);
+  const counts = {};
+
+  activeModes.forEach((mode) => {
+    const pace = pacingSecondsPerTrial[mode] || pacingSecondsPerTrial.mapping;
+    const share = availableSeconds / activeModes.length;
+    counts[mode] = Math.max(4, Math.round(share / pace));
+  });
+
+  return { counts, dualSeconds };
+}
+
+function blendTrialBuckets(buckets) {
+  const pool = buckets
+    .filter((bucket) => Array.isArray(bucket) && bucket.length)
+    .map((bucket) => shuffle([...bucket]));
+
+  const blended = [];
+  while (pool.some((bucket) => bucket.length)) {
+    const available = pool.map((bucket, idx) => (bucket.length ? idx : null)).filter((idx) => idx !== null);
+    const pickIdx = available[Math.floor(Math.random() * available.length)];
+    blended.push(pool[pickIdx].pop());
+  }
+
+  return blended;
+}
+
+function buildTrials(selectedModes, sessionMinutes) {
+  const { counts, dualSeconds } = calculateTrialPlan(selectedModes, sessionMinutes);
+
+  const buckets = [];
+  if (selectedModes.mapping) buckets.push(generateMappingTrials(counts.mapping));
+  if (selectedModes.extinction) buckets.push(generateExtinctionTrials(counts.extinction));
+  if (selectedModes.editing) buckets.push(generateEditingTrials(counts.editing));
+  if (selectedModes.dual) buckets.push(generateDualTrials(dualSeconds || sessionMinutes * 60));
+
+  appState.trials = blendTrialBuckets(buckets);
   appState.currentTrialIndex = 0;
 }
 
@@ -1269,8 +1354,8 @@ function resetApp() {
   setScreen("setup");
 }
 
-function startSession(selectedModes, sessionLength) {
-  buildTrials(selectedModes, sessionLength);
+function startSession(selectedModes, sessionMinutes) {
+  buildTrials(selectedModes, sessionMinutes);
   if (!appState.trials.length) return;
   practiceName.textContent = appState.setup.targetName;
   setScreen("test");
@@ -1297,7 +1382,7 @@ document.getElementById("setup-form").addEventListener("submit", (e) => {
     dual: data.get("testStyleDual") !== null,
     editing: data.get("testStyleEditing") !== null
   };
-  const sessionLength = Number(data.get("sessionLength")) || 30;
+  const sessionLength = Number(data.get("sessionLength")) || defaultSessionMinutes;
   startSession(selectedModes, sessionLength);
 });
 
