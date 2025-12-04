@@ -232,7 +232,8 @@ const BASE_SENTENCE_PATTERNS = [
     slots: ["context_family"],
     pronounRolesUsed: ["subject", "object"],
     modes: ["mapping", "extinction", "editing", "dual"],
-    difficulty: 3
+    difficulty: 3,
+    grammarHint: "singular"
   },
   {
     id: "family_sticky_note",
