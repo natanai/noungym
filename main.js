@@ -1106,15 +1106,29 @@ function calculateTrialPlan(selectedModes, sessionMinutes) {
 }
 
 function blendTrialBuckets(buckets) {
-  const pool = buckets
+  const pool = shuffle(
+    buckets
     .filter((bucket) => Array.isArray(bucket) && bucket.length)
-    .map((bucket) => shuffle([...bucket]));
+    .map((bucket) => shuffle([...bucket]))
+  );
 
+  if (!pool.length) return [];
+
+  // Rotate through each bucket so sessions cycle between selected test types.
+  let bucketIndex = 0;
   const blended = [];
-  while (pool.some((bucket) => bucket.length)) {
-    const available = pool.map((bucket, idx) => (bucket.length ? idx : null)).filter((idx) => idx !== null);
-    const pickIdx = available[Math.floor(Math.random() * available.length)];
-    blended.push(pool[pickIdx].pop());
+
+  while (pool.length) {
+    const bucket = pool[bucketIndex];
+    if (bucket.length) {
+      blended.push(bucket.pop());
+      bucketIndex = (bucketIndex + 1) % pool.length;
+      continue;
+    }
+
+    pool.splice(bucketIndex, 1);
+    if (!pool.length) break;
+    bucketIndex = bucketIndex % pool.length;
   }
 
   return blended;
