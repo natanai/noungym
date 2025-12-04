@@ -94,7 +94,7 @@ const BASE_SENTENCE_PATTERNS = [
   {
     id: "ownership_check",
     template:
-      "[[context_meeting]]I checked whether the notebook was really {possPron} before returning it to {object}.",
+      "[[context_meeting]]I checked whether the notebook {were:singular} really {possPron} before returning it to {object}.",
     slots: ["context_meeting"],
     pronounRolesUsed: ["possPron", "object"],
     modes: ["mapping", "extinction", "editing", "dual"],

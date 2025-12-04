@@ -308,6 +308,8 @@ const grammarLexicon = {
 function resolveGrammar(subject, overrideGrammar, hint) {
   const normalized = (subject || "").trim().toLowerCase();
   const override = overrideGrammar === "auto" ? "" : overrideGrammar;
+  if (hint === "singular") return "singular";
+  if (hint === "plural") return "plural";
   if (["they", "them", "their"].includes(normalized)) {
     return "plural";
   }
