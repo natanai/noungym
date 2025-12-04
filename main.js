@@ -12,6 +12,18 @@ const pronounPresets = [
     verbGrammar: "plural"
   },
   {
+    key: "theyThemSingular",
+    label: "They/Them (singular verbs)",
+    pronouns: {
+      subject: "they",
+      object: "them",
+      possAdj: "their",
+      possPron: "theirs",
+      reflexive: "themselves"
+    },
+    verbGrammar: "singular"
+  },
+  {
     key: "sheHer",
     label: "She/Her (singular verbs)",
     pronouns: {
@@ -337,6 +349,7 @@ function resolveGrammar(subject, overrideGrammar, hint) {
   const normalized = (subject || "").trim().toLowerCase();
   const preferred = overrideGrammar || inferGrammarFromPronoun(normalized);
   if (hint === "name") return "singular";
+  if (overrideGrammar) return preferred;
   const forcePlural = normalized === "they" || normalized === "them";
   return forcePlural ? "plural" : preferred;
 }

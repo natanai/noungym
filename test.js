@@ -27,7 +27,19 @@ const pronounSets = [
       possAdj: "their",
       possPron: "theirs",
       reflexive: "themselves"
-    }
+    },
+    grammar: "plural"
+  },
+  {
+    label: "they/them (singular)",
+    pronouns: {
+      subject: "they",
+      object: "them",
+      possAdj: "their",
+      possPron: "theirs",
+      reflexive: "themselves"
+    },
+    grammar: "singular"
   },
   {
     label: "she/her",
@@ -61,18 +73,27 @@ const pronounSets = [
   }
 ];
 
-function validateAgreement(sentence, pronouns) {
+function validateAgreement(sentence, pronouns, expectedGrammar) {
   const lower = sentence.toLowerCase();
   const subj = (pronouns.subject || "").toLowerCase();
+  const grammar = expectedGrammar || inferGrammarFromPronoun(subj);
+
   if (subj === "they") {
-    [" they is ", " they has ", " they was ", " they does "]
-      .forEach((bad) => assert(!lower.includes(bad), `Plural they should not use singular verb in: ${sentence}`));
+    const disallowed = grammar === "singular"
+      ? [" they are ", " they have ", " they were ", " they do "]
+      : [" they is ", " they has ", " they was ", " they does "];
+
+    disallowed.forEach((bad) => {
+      assert(!lower.includes(bad), `They/them should follow ${grammar} verbs in: ${sentence}`);
+    });
   }
   if (["he", "she", "ze", "xe", "nat"].includes(subj)) {
-    [" are ", " have ", " were "].forEach((verb) => {
-      const needle = ` ${subj} ${verb}`;
-      assert(!lower.includes(needle), `Singular subject should not pair with plural verb in: ${sentence}`);
-    });
+    if (grammar !== "plural") {
+      [" are ", " have ", " were "].forEach((verb) => {
+        const needle = ` ${subj} ${verb}`;
+        assert(!lower.includes(needle), `Singular subject should not pair with plural verb in: ${sentence}`);
+      });
+    }
   }
 }
 
@@ -84,12 +105,13 @@ function testGrammarAcrossTemplates() {
   ];
 
   pronounSets.forEach((set) => {
+    const selectedGrammar = set.grammar || inferGrammarFromPronoun(set.pronouns.subject);
     appState.setup = {
       ...appState.setup,
       targetName: "Nat",
       deadname: "Old Name",
       pronouns: set.pronouns,
-      verbGrammar: resolveGrammar(set.pronouns.subject, inferGrammarFromPronoun(set.pronouns.subject)),
+      verbGrammar: resolveGrammar(set.pronouns.subject, selectedGrammar),
       extinctionPronounSets: []
     };
 
@@ -97,9 +119,9 @@ function testGrammarAcrossTemplates() {
       const templateText = tpl.text || tpl.template || "";
       const sentence = applyLanguageRules(templateText, {
         pronouns: set.pronouns,
-        grammar: inferGrammarFromPronoun(set.pronouns.subject)
+        grammar: selectedGrammar
       });
-      validateAgreement(sentence, set.pronouns);
+      validateAgreement(sentence, set.pronouns, resolveGrammar(set.pronouns.subject, selectedGrammar));
     });
   });
 }
