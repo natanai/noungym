@@ -1,7 +1,7 @@
 const pronounPresets = [
   {
     key: "theyThem",
-    label: "They/Them • plural verbs",
+    label: "They/Them (plural verbs)",
     pronouns: {
       subject: "they",
       object: "them",
@@ -13,7 +13,7 @@ const pronounPresets = [
   },
   {
     key: "theyThemSingular",
-    label: "They/Them • singular verbs",
+    label: "They/Them (singular verbs)",
     pronouns: {
       subject: "they",
       object: "them",
@@ -25,7 +25,7 @@ const pronounPresets = [
   },
   {
     key: "sheHer",
-    label: "She/Her • singular verbs",
+    label: "She/Her (singular verbs)",
     pronouns: {
       subject: "she",
       object: "her",
@@ -37,7 +37,7 @@ const pronounPresets = [
   },
   {
     key: "heHim",
-    label: "He/Him • singular verbs",
+    label: "He/Him (singular verbs)",
     pronouns: {
       subject: "he",
       object: "him",
@@ -49,7 +49,7 @@ const pronounPresets = [
   },
   {
     key: "zeZir",
-    label: "Ze/Zir • singular verbs",
+    label: "Ze/Zir (singular verbs)",
     pronouns: {
       subject: "ze",
       object: "zir",
@@ -61,7 +61,7 @@ const pronounPresets = [
   },
   {
     key: "xeXem",
-    label: "Xe/Xem • singular verbs",
+    label: "Xe/Xem (singular verbs)",
     pronouns: {
       subject: "xe",
       object: "xem",
