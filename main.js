@@ -172,6 +172,8 @@ const pacingSecondsPerTrial = { mapping: 6, extinction: 6, editing: 7 };
 
 const summaryStorageKey = "noun-gym-last-summary";
 
+const setupForm = document.getElementById("setup-form");
+
 const setupScreen = document.getElementById("setup-screen");
 const testScreen = document.getElementById("test-screen");
 const summaryScreen = document.getElementById("summary-screen");
@@ -184,6 +186,8 @@ const savedSummaryGrid = document.getElementById("saved-summary-grid");
 const savedSummaryMeta = document.getElementById("saved-summary-meta");
 const clearSummaryBtn = document.getElementById("clear-summary-btn");
 const endSessionBtn = document.getElementById("end-session-btn");
+const shareSetupBtn = document.getElementById("share-setup-btn");
+const targetNameInput = document.getElementById("targetName");
 const pronounPresetSelect = document.getElementById("pronounPreset");
 const extinctionPresetSelect = document.getElementById("extinctionPreset");
 const extinctionCustomFields = document.getElementById("extinction-custom-fields");
@@ -203,6 +207,7 @@ const extinctionInputs = {
   reflexive: document.querySelector('input[name="extinctionReflexive"]')
 };
 const grammarRadios = document.querySelectorAll('input[name="verbGrammar"]');
+const sessionLengthSelect = document.getElementById("sessionLength");
 const deadnameInput = document.getElementById("deadname");
 
 const isTouch = navigator.maxTouchPoints && navigator.maxTouchPoints > 0;
@@ -398,6 +403,180 @@ function shuffle(arr) {
     .map((item) => ({ item, sort: Math.random() }))
     .sort((a, b) => a.sort - b.sort)
     .map(({ item }) => item);
+}
+
+function collectSetupPayload(formData) {
+  const extinctionPresets = formData.getAll("extinctionPreset").filter(Boolean);
+
+  return {
+    targetName: (formData.get("targetName") || "").trim(),
+    deadname: (formData.get("deadname") || "").trim(),
+    pronounPreset: formData.get("pronounPreset") || "",
+    pronouns: {
+      subject: (formData.get("subject") || "").trim(),
+      object: (formData.get("object") || "").trim(),
+      possAdj: (formData.get("possAdj") || "").trim(),
+      possPron: (formData.get("possPron") || "").trim(),
+      reflexive: (formData.get("reflexive") || "").trim()
+    },
+    verbGrammar: formData.get("verbGrammar") || "plural",
+    extinctionPresets,
+    extinctionCustom: {
+      subject: (formData.get("extinctionSubject") || "").trim(),
+      object: (formData.get("extinctionObject") || "").trim(),
+      possAdj: (formData.get("extinctionPossAdj") || "").trim(),
+      possPron: (formData.get("extinctionPossPron") || "").trim(),
+      reflexive: (formData.get("extinctionReflexive") || "").trim()
+    },
+    testStyles: {
+      mapping: formData.get("testStyleMapping") !== null,
+      extinction: formData.get("testStyleExtinction") !== null,
+      dual: formData.get("testStyleDual") !== null,
+      editing: formData.get("testStyleEditing") !== null
+    },
+    sessionLength: Number(formData.get("sessionLength")) || defaultSessionMinutes
+  };
+}
+
+function encodeSetupPayload(payload) {
+  const params = new URLSearchParams();
+
+  if (payload.targetName) params.set("name", payload.targetName);
+  if (payload.deadname) params.set("dead", payload.deadname);
+  if (payload.pronounPreset) params.set("preset", payload.pronounPreset);
+  params.set("grammar", payload.verbGrammar || "plural");
+
+  Object.entries(payload.pronouns || {}).forEach(([key, value]) => {
+    if (value) params.set(`pro_${key}`, value);
+  });
+
+  if (payload.extinctionPresets && payload.extinctionPresets.length) {
+    params.set("ext", payload.extinctionPresets.join(","));
+  }
+
+  Object.entries(payload.extinctionCustom || {}).forEach(([key, value]) => {
+    if (value) params.set(`ext_${key}`, value);
+  });
+
+  Object.entries(payload.testStyles || {}).forEach(([key, enabled]) => {
+    if (enabled) params.set(`test_${key}`, "1");
+  });
+
+  if (payload.sessionLength) params.set("minutes", String(payload.sessionLength));
+
+  return params.toString();
+}
+
+function decodeSetupPayload(search) {
+  const query = search.startsWith("?") ? search.slice(1) : search.replace(/^#/, "");
+  if (!query) return null;
+
+  const params = new URLSearchParams(query);
+  const rawMinutes = Number(params.get("minutes"));
+
+  const testStyles = {
+    mapping: params.has("test_mapping"),
+    extinction: params.has("test_extinction"),
+    dual: params.has("test_dual"),
+    editing: params.has("test_editing")
+  };
+
+  const extinctionPresets = (params.get("ext") || "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+  return {
+    targetName: params.get("name") || "",
+    deadname: params.get("dead") || "",
+    pronounPreset: params.get("preset") || "",
+    pronouns: {
+      subject: params.get("pro_subject") || "",
+      object: params.get("pro_object") || "",
+      possAdj: params.get("pro_possAdj") || "",
+      possPron: params.get("pro_possPron") || "",
+      reflexive: params.get("pro_reflexive") || ""
+    },
+    verbGrammar: params.get("grammar") || "plural",
+    extinctionPresets,
+    extinctionCustom: {
+      subject: params.get("ext_subject") || "",
+      object: params.get("ext_object") || "",
+      possAdj: params.get("ext_possAdj") || "",
+      possPron: params.get("ext_possPron") || "",
+      reflexive: params.get("ext_reflexive") || ""
+    },
+    testStyles: Object.values(testStyles).some(Boolean) ? testStyles : null,
+    sessionLength: Number.isFinite(rawMinutes) && rawMinutes > 0 ? rawMinutes : null
+  };
+}
+
+function applySetupPayloadToForm(payload) {
+  if (!payload) return;
+
+  if (targetNameInput) targetNameInput.value = payload.targetName || "";
+  if (deadnameInput) deadnameInput.value = payload.deadname || "";
+
+  if (pronounPresetSelect && payload.pronounPreset) {
+    pronounPresetSelect.value = payload.pronounPreset;
+  }
+
+  Object.entries(pronounInputs || {}).forEach(([key, input]) => {
+    if (input) input.value = (payload.pronouns && payload.pronouns[key]) || "";
+  });
+
+  setGrammar(payload.verbGrammar || "plural");
+
+  const selectedExtinctions =
+    payload.extinctionPresets && payload.extinctionPresets.length
+      ? payload.extinctionPresets
+      : ["none"];
+
+  if (extinctionPresetSelect) {
+    Array.from(extinctionPresetSelect.options).forEach((opt) => {
+      opt.selected = selectedExtinctions.includes(opt.value);
+    });
+  }
+
+  Object.entries(extinctionInputs || {}).forEach(([key, input]) => {
+    if (input && payload.extinctionCustom) {
+      input.value = payload.extinctionCustom[key] || "";
+    }
+  });
+
+  applyExtinctionPreset(selectedExtinctions);
+
+  if (payload.testStyles) {
+    const toggles = {
+      testStyleMapping: payload.testStyles.mapping,
+      testStyleExtinction: payload.testStyles.extinction,
+      testStyleDual: payload.testStyles.dual,
+      testStyleEditing: payload.testStyles.editing
+    };
+
+    Object.entries(toggles).forEach(([name, isOn]) => {
+      const input = setupForm ? setupForm.querySelector(`input[name="${name}"]`) : null;
+      if (input) input.checked = Boolean(isOn);
+    });
+  }
+
+  if (sessionLengthSelect && payload.sessionLength) {
+    sessionLengthSelect.value = String(payload.sessionLength);
+  }
+}
+
+function hydrateSetupFromPayload(payload) {
+  if (!payload) return;
+  applySetupPayloadToForm(payload);
+  if (setupForm) parseSetup(new FormData(setupForm));
+}
+
+function hydrateSetupFromUrl() {
+  if (!setupForm) return;
+  const raw = window.location.search || window.location.hash;
+  if (!raw) return;
+  const payload = decodeSetupPayload(raw);
+  hydrateSetupFromPayload(payload);
 }
 
 function parseSetup(formData) {
@@ -1473,25 +1652,46 @@ populateSelect(pronounPresetSelect, pronounPresets, "theyThem");
 populateSelect(extinctionPresetSelect, extinctionPresets, "none");
 applyPronounPreset("theyThem");
 applyExtinctionPreset(["none"]);
+hydrateSetupFromUrl();
 
 const selectedExtinctionValues = () => getSelectedValues(extinctionPresetSelect);
 
 pronounPresetSelect.addEventListener("change", (e) => applyPronounPreset(e.target.value));
 extinctionPresetSelect.addEventListener("change", () => applyExtinctionPreset(selectedExtinctionValues()));
 
-document.getElementById("setup-form").addEventListener("submit", (e) => {
-  e.preventDefault();
-  const data = new FormData(e.target);
-  parseSetup(data);
-  const selectedModes = {
-    mapping: data.get("testStyleMapping") !== null,
-    extinction: data.get("testStyleExtinction") !== null,
-    dual: data.get("testStyleDual") !== null,
-    editing: data.get("testStyleEditing") !== null
-  };
-  const sessionLength = Number(data.get("sessionLength")) || defaultSessionMinutes;
-  startSession(selectedModes, sessionLength);
-});
+if (setupForm) {
+  setupForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const data = new FormData(e.target);
+    parseSetup(data);
+    const selectedModes = {
+      mapping: data.get("testStyleMapping") !== null,
+      extinction: data.get("testStyleExtinction") !== null,
+      dual: data.get("testStyleDual") !== null,
+      editing: data.get("testStyleEditing") !== null
+    };
+    const sessionLength = Number(data.get("sessionLength")) || defaultSessionMinutes;
+    startSession(selectedModes, sessionLength);
+  });
+}
+
+if (shareSetupBtn && setupForm) {
+  shareSetupBtn.addEventListener("click", async () => {
+    if (!setupForm.reportValidity()) return;
+    const data = new FormData(setupForm);
+    parseSetup(data);
+    const payload = collectSetupPayload(data);
+    const encoded = encodeSetupPayload(payload);
+    const url = `${window.location.origin}${window.location.pathname}?${encoded}`;
+
+    try {
+      await navigator.clipboard.writeText(url);
+      alert("Setup link copied to your clipboard.");
+    } catch (err) {
+      prompt("Copy your setup link:", url);
+    }
+  });
+}
 
 if (endSessionBtn) {
   endSessionBtn.addEventListener("click", () => {
