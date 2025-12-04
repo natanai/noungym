@@ -170,6 +170,7 @@ const extinctionInputs = {
   reflexive: doc ? doc.querySelector('input[name="extinctionReflexive"]') : null
 };
 const grammarRadios = doc ? doc.querySelectorAll('input[name="verbGrammar"]') : [];
+const grammarExampleEl = doc ? doc.getElementById("verb-grammar-example") : null;
 const sessionLengthSelect = doc ? doc.getElementById("sessionLength") : null;
 const deadnameInput = doc ? doc.getElementById("deadname") : null;
 
@@ -194,6 +195,11 @@ function setGrammar(value) {
   });
 }
 
+function currentGrammarSelection() {
+  const checked = Array.from(grammarRadios).find((radio) => radio.checked);
+  return checked ? checked.value : "auto";
+}
+
 function getSelectedValues(selectEl) {
   if (!selectEl) return [];
   return Array.from(selectEl.selectedOptions || []).map((opt) => opt.value);
@@ -208,6 +214,7 @@ function applyPronounPreset(key) {
     if (pronounInputs[k]) pronounInputs[k].value = v;
   });
   setGrammar(preset.verbGrammar);
+  renderGrammarExample();
 }
 
 function applyExtinctionPreset(keys) {
@@ -330,6 +337,34 @@ function makePossessive(term = "") {
   const trimmed = (term || "").trim();
   if (!trimmed) return "";
   return trimmed.endsWith("s") ? `${trimmed}'` : `${trimmed}'s`;
+}
+
+function renderGrammarExample(selectedValue) {
+  if (!grammarExampleEl) return;
+
+  const grammarChoice = selectedValue || currentGrammarSelection();
+  const subject = (pronounInputs.subject?.value || "They").trim() || "They";
+  const targetName = (targetNameInput?.value || "Jordan").trim() || "Jordan";
+  const grammarPreference = grammarChoice === "conservative" ? "plural" : grammarChoice;
+  const resolvedGrammar = resolveGrammar(subject, grammarPreference);
+  const grammarSet = grammarLexicon[resolvedGrammar] || grammarLexicon.plural;
+  const exampleVerb = conjugateVerb("plan", grammarSet);
+  const possTargetName = makePossessive(targetName) || "their";
+  const leadNoun = grammarChoice === "conservative" ? targetName : subject;
+
+  const descriptions = {
+    auto: "Follows the pronoun set automatically.",
+    conservative: "Starts with the name once before shifting to pronouns for 'they'.",
+    plural: "Locks verbs to plural forms.",
+    singular: "Locks verbs to singular forms."
+  };
+
+  const sentence =
+    grammarChoice === "conservative"
+      ? `${leadNoun} ${exampleVerb} the plan before ${subject} takes the lead.`
+      : `${leadNoun} ${exampleVerb} to visit ${possTargetName} friend.`;
+
+  grammarExampleEl.textContent = `${descriptions[grammarChoice] || "Custom grammar applied."} Example: ${sentence}`;
 }
 
 function conjugateVerb(base, grammarSet) {
@@ -2176,6 +2211,7 @@ populateSelect(extinctionPresetSelect, extinctionPresets, "none");
 applyPronounPreset("theyThem");
 applyExtinctionPreset(["none"]);
 hydrateSetupFromUrl();
+renderGrammarExample();
 
 const selectedExtinctionValues = () => getSelectedValues(extinctionPresetSelect);
 
@@ -2183,6 +2219,20 @@ if (pronounPresetSelect)
   pronounPresetSelect.addEventListener("change", (e) => applyPronounPreset(e.target.value));
 if (extinctionPresetSelect)
   extinctionPresetSelect.addEventListener("change", () => applyExtinctionPreset(selectedExtinctionValues()));
+
+Array.from(grammarRadios).forEach((radio) => {
+  radio.addEventListener("change", (e) => renderGrammarExample(e.target.value));
+});
+
+Object.values(pronounInputs).forEach((input) => {
+  if (input) {
+    input.addEventListener("input", () => renderGrammarExample());
+  }
+});
+
+if (targetNameInput) {
+  targetNameInput.addEventListener("input", () => renderGrammarExample());
+}
 
 if (setupForm) {
   setupForm.addEventListener("submit", (e) => {
