@@ -1746,8 +1746,31 @@ function renderEditingTrial(trial) {
         opt.textContent = o;
         select.appendChild(opt);
       });
-      const startingValue = isVerbSwitchable ? normalized : baseToken;
-      select.value = options.includes(startingValue) ? startingValue : options[0];
+      const ensureIncorrectStart = () => {
+        if (isWrong) {
+          const preferredWrong = (wrongEntry?.wrong || baseToken || "").toLowerCase();
+          const wrongOption = options.find(
+            (opt) => opt.toLowerCase() === preferredWrong
+          );
+          if (wrongOption) return wrongOption;
+
+          const notCorrect = options.find(
+            (opt) => opt.toLowerCase() !== (wrongEntry?.correct || "").toLowerCase()
+          );
+          return notCorrect || options[0];
+        }
+
+        if (isVerbSwitchable) {
+          const expected = expectedVerbForGrammar(normalized, currentSubjectGrammar);
+          const mismatch = options.find((opt) => opt.toLowerCase() !== expected);
+          return mismatch || options[0];
+        }
+
+        const defaultValue = isVerbSwitchable ? normalized : baseToken;
+        return options.includes(defaultValue) ? defaultValue : options[0];
+      };
+
+      select.value = ensureIncorrectStart();
 
       const markState = (value) => {
         const normalizedValue = value.toLowerCase();
@@ -1772,8 +1795,12 @@ function renderEditingTrial(trial) {
         if (updateReadyState()) continueBtn.focus();
       };
 
-      markState(select.value);
-      select.addEventListener("change", () => markState(select.value));
+      const markSelectedValue = () => markState(select.value);
+
+      markSelectedValue();
+      select.addEventListener("change", markSelectedValue);
+      select.addEventListener("click", markSelectedValue);
+      select.addEventListener("blur", markSelectedValue);
 
       const wrapper = document.createElement("span");
       wrapper.className = "token";
