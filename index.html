@@ -74,7 +74,8 @@
               </div>
               <div class="form-group">
                 <label for="extinctionPreset">Pronouns to extinguish</label>
-                <select id="extinctionPreset" name="extinctionPreset" multiple></select>
+                <select id="extinctionPreset" name="extinctionPreset" class="multi-select" multiple></select>
+                <div id="extinction-chips" class="chip-row" aria-live="polite"></div>
                 <p class="helper">Pick one or more sets to phase out. Combine a preset with custom entries for mixed traps.</p>
               </div>
               <div class="form-group">
@@ -154,7 +155,10 @@
             <p class="label">Practicing</p>
             <h2 id="practice-name"></h2>
           </div>
-          <div class="counter" id="trial-counter"></div>
+          <div class="test-actions">
+            <div class="counter" id="trial-counter"></div>
+            <button id="end-session-btn" class="ghost danger">End Session</button>
+          </div>
         </header>
         <div id="trial-container" class="trial-container"></div>
         <footer class="test-footer">Use the on-screen buttons to respond</footer>

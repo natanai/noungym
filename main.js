@@ -163,7 +163,8 @@ const appState = {
   trials: [],
   currentTrialIndex: 0,
   results: { mapping: [], extinction: [], dual: [], editing: [] },
-  dualTimers: { number: null, pronoun: null, block: null }
+  dualTimers: { number: null, pronoun: null, block: null, progress: null },
+  activeDualCleanup: null
 };
 
 const defaultSessionMinutes = 5;
@@ -182,9 +183,11 @@ const savedSummarySection = document.getElementById("saved-summary");
 const savedSummaryGrid = document.getElementById("saved-summary-grid");
 const savedSummaryMeta = document.getElementById("saved-summary-meta");
 const clearSummaryBtn = document.getElementById("clear-summary-btn");
+const endSessionBtn = document.getElementById("end-session-btn");
 const pronounPresetSelect = document.getElementById("pronounPreset");
 const extinctionPresetSelect = document.getElementById("extinctionPreset");
 const extinctionCustomFields = document.getElementById("extinction-custom-fields");
+const extinctionChips = document.getElementById("extinction-chips");
 const pronounInputs = {
   subject: document.querySelector('input[name="subject"]'),
   object: document.querySelector('input[name="object"]'),
@@ -250,6 +253,32 @@ function applyExtinctionPreset(keys) {
       input.value = preset.pronouns[k] || "";
     });
   }
+
+  renderExtinctionChips(selectedKeys);
+}
+
+function renderExtinctionChips(selectedKeys = []) {
+  if (!extinctionChips) return;
+  extinctionChips.innerHTML = "";
+
+  const chips = selectedKeys
+    .map((key) => extinctionPresets.find((p) => p.key === key))
+    .filter(Boolean);
+
+  if (!chips.length) {
+    const placeholder = document.createElement("span");
+    placeholder.className = "chip muted";
+    placeholder.textContent = "No sets selected";
+    extinctionChips.appendChild(placeholder);
+    return;
+  }
+
+  chips.forEach((preset) => {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.textContent = preset.custom ? "Custom set" : preset.label;
+    extinctionChips.appendChild(chip);
+  });
 }
 
 function toggleExtinctionCustomFields(show) {
@@ -887,6 +916,34 @@ function setScreen(screen) {
   summaryScreen.classList.toggle("hidden", screen !== "summary");
 }
 
+function stopDualProgress() {
+  if (appState.dualTimers.progress) {
+    clearInterval(appState.dualTimers.progress);
+    appState.dualTimers.progress = null;
+  }
+}
+
+function startDualProgress(durationSeconds = 0) {
+  stopDualProgress();
+  const startTime = Date.now();
+
+  const format = (secs) => {
+    const minutes = String(Math.floor(secs / 60)).padStart(2, "0");
+    const seconds = String(secs % 60).padStart(2, "0");
+    return `${minutes}:${seconds}`;
+  };
+
+  const update = () => {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const remaining = Math.max(durationSeconds - elapsed, 0);
+    trialCounter.textContent = `Dual task • ${format(remaining)} left`;
+    if (remaining <= 0) stopDualProgress();
+  };
+
+  update();
+  appState.dualTimers.progress = setInterval(update, 1000);
+}
+
 function flashFeedback(isCorrect) {
   trialContainer.classList.remove("feedback-correct", "feedback-incorrect");
   void trialContainer.offsetWidth;
@@ -981,6 +1038,7 @@ function renderExtinctionTrial(trial) {
 }
 
 function renderDualTrial(trial) {
+  if (appState.activeDualCleanup) appState.activeDualCleanup();
   trialContainer.innerHTML = "";
   const instructions = document.createElement("p");
   instructions.className = "label";
@@ -1126,9 +1184,14 @@ function renderDualTrial(trial) {
     clearInterval(numberInterval);
     clearInterval(pronounInterval);
     clearTimeout(appState.dualTimers.block);
+    appState.dualTimers.block = null;
+    stopDualProgress();
     stopTimer();
     window.removeEventListener("keydown", keyHandler);
+    appState.activeDualCleanup = null;
   };
+
+  appState.activeDualCleanup = cleanup;
 
   const handleNumberAnswer = (choice) => {
     const value = Number(numberValue.textContent) || 0;
@@ -1266,7 +1329,12 @@ function renderEditingTrial(trial) {
 
 function renderTrial() {
   const trial = appState.trials[appState.currentTrialIndex];
-  trialCounter.textContent = `${appState.currentTrialIndex + 1} / ${appState.trials.length}`;
+  if (trial.type === "dual") {
+    startDualProgress(trial.duration);
+  } else {
+    stopDualProgress();
+    trialCounter.textContent = `${appState.currentTrialIndex + 1} / ${appState.trials.length}`;
+  }
   switch (trial.type) {
     case "mapping":
       renderMappingTrial(trial);
@@ -1355,6 +1423,8 @@ function renderSavedSummary(saved) {
 }
 
 function showSummary() {
+  if (appState.activeDualCleanup) appState.activeDualCleanup();
+  stopDualProgress();
   setScreen("summary");
   summaryStats.innerHTML = "";
   const previousSummary = loadSavedSummary();
@@ -1379,9 +1449,15 @@ function showSummary() {
 }
 
 function resetApp() {
+  if (appState.activeDualCleanup) appState.activeDualCleanup();
+  stopDualProgress();
+  clearTimeout(appState.dualTimers.block);
+  appState.dualTimers.block = null;
   appState.trials = [];
   appState.currentTrialIndex = 0;
   appState.results = { mapping: [], extinction: [], dual: [], editing: [] };
+  trialContainer.innerHTML = "";
+  trialCounter.textContent = "";
   setScreen("setup");
 }
 
@@ -1416,6 +1492,13 @@ document.getElementById("setup-form").addEventListener("submit", (e) => {
   const sessionLength = Number(data.get("sessionLength")) || defaultSessionMinutes;
   startSession(selectedModes, sessionLength);
 });
+
+if (endSessionBtn) {
+  endSessionBtn.addEventListener("click", () => {
+    const confirmReset = confirm("End this session and return to setup? Progress will be lost.");
+    if (confirmReset) resetApp();
+  });
+}
 
 document.getElementById("restart-btn").addEventListener("click", resetApp);
 if (clearSummaryBtn) {
