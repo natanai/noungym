@@ -2038,28 +2038,60 @@ function summarizeLatencyByGroup(entries = [], selector, labelFactory) {
 }
 
 function renderBarChart(labels = [], values = [], options = {}) {
-  const { maxValue, valueFormatter, barColor = "#7c3aed" } = options;
+  const { maxValue, valueFormatter, barColor = "#7c3aed", peakColor = "#22c55e" } = options;
   const chart = document.createElement("div");
   chart.className = "chart chart--bars";
-  const domainMax = maxValue || Math.max(...values, 1);
+  const guideLayer = document.createElement("div");
+  guideLayer.className = "chart-guides";
+  [25, 50, 75, 100].forEach((pct) => {
+    const guide = document.createElement("span");
+    guide.className = "chart-guide";
+    guide.style.bottom = `${pct}%`;
+    guide.textContent = `${pct}%`;
+    guideLayer.appendChild(guide);
+  });
+
+  const bars = document.createElement("div");
+  bars.className = "chart-bars";
+
+  const numericValues = values.filter((v) => Number.isFinite(v));
+  const domainMax = maxValue || (numericValues.length ? Math.max(...numericValues) : 1);
+  const peakValue = numericValues.length ? Math.max(...numericValues) : null;
+  const peakIndex = values.indexOf(peakValue);
+
   labels.forEach((label, idx) => {
     const value = values[idx] || 0;
     const height = Math.min(100, Math.round((value / domainMax) * 100));
     const bar = document.createElement("div");
     bar.className = "chart-bar";
+    bar.setAttribute("aria-label", `${label}: ${value}`);
+
+    const track = document.createElement("div");
+    track.className = "chart-bar-track";
+
     const fill = document.createElement("div");
     fill.className = "chart-bar-fill";
     fill.style.height = `${height}%`;
-    fill.style.backgroundColor = barColor;
+    if (idx === peakIndex && peakValue !== null) {
+      fill.style.background = `linear-gradient(180deg, ${peakColor}, ${barColor})`;
+    } else {
+      fill.style.backgroundColor = barColor;
+    }
+
     const valueLabel = document.createElement("span");
     valueLabel.className = "chart-value";
     valueLabel.textContent = typeof valueFormatter === "function" ? valueFormatter(value) : value;
+
     const textLabel = document.createElement("span");
     textLabel.className = "chart-label";
     textLabel.textContent = label;
-    bar.append(fill, valueLabel, textLabel);
-    chart.appendChild(bar);
+
+    track.appendChild(fill);
+    bar.append(track, valueLabel, textLabel);
+    bars.appendChild(bar);
   });
+
+  chart.append(guideLayer, bars);
   return chart;
 }
 
@@ -2067,6 +2099,64 @@ function mergeBucketCounts(statsByMode, bucketLabels) {
   return bucketLabels.map((bucket) =>
     Object.values(statsByMode || {}).reduce((acc, stats) => acc + (stats?.rtBuckets?.[bucket] || 0), 0)
   );
+}
+
+function renderHeatmap(modes, statsByMode, bucketLabels) {
+  const counts = [];
+  modes.forEach((mode) => {
+    bucketLabels.forEach((bucket) => counts.push(statsByMode[mode.key]?.rtBuckets?.[bucket] || 0));
+  });
+
+  const maxCount = Math.max(...counts, 0);
+  if (!maxCount) return null;
+
+  const card = document.createElement("div");
+  card.className = "summary-card summary-card--chart";
+  card.innerHTML = `
+    <p class="label">Pacing heatmap</p>
+    <p class="helper">See where responses clustered by mode and time band.</p>
+  `;
+
+  const grid = document.createElement("div");
+  grid.className = "heatmap";
+
+  const headerRow = document.createElement("div");
+  headerRow.className = "heatmap-row heatmap-row--header";
+  const modeHeader = document.createElement("span");
+  modeHeader.className = "heatmap-label";
+  modeHeader.textContent = "Mode";
+  headerRow.appendChild(modeHeader);
+  bucketLabels.forEach((label) => {
+    const cell = document.createElement("span");
+    cell.className = "heatmap-cell heatmap-cell--label";
+    cell.textContent = label;
+    headerRow.appendChild(cell);
+  });
+  grid.appendChild(headerRow);
+
+  modes.forEach((mode) => {
+    const row = document.createElement("div");
+    row.className = "heatmap-row";
+    const modeLabel = document.createElement("span");
+    modeLabel.className = "heatmap-label";
+    modeLabel.textContent = mode.label;
+    row.appendChild(modeLabel);
+
+    bucketLabels.forEach((bucket) => {
+      const count = statsByMode[mode.key]?.rtBuckets?.[bucket] || 0;
+      const cell = document.createElement("span");
+      cell.className = "heatmap-cell";
+      const intensity = maxCount ? count / maxCount : 0;
+      cell.style.setProperty("--heat", intensity);
+      cell.textContent = count ? `${count}x` : "—";
+      row.appendChild(cell);
+    });
+
+    grid.appendChild(row);
+  });
+
+  card.appendChild(grid);
+  return card;
 }
 
 function buildRecommendations(modes, statsByMode, latencyGroups = []) {
@@ -2326,6 +2416,9 @@ function showSummary() {
     bucketCard.appendChild(bucketChart);
     summaryStats.appendChild(bucketCard);
   }
+
+  const heatmapCard = renderHeatmap(modes, statsByMode, bucketLabels);
+  if (heatmapCard) summaryStats.appendChild(heatmapCard);
 
   const gapEntries = modes
     .map(({ key, label }) => {
