@@ -833,6 +833,19 @@ const extinctionRecipes = [
     limit: 50
   },
   {
+    template:
+      "[[leadIn]]{name} explained that {subject} {be} covering for {object} while fixing {possAdj} badge.",
+    slots: {
+      leadIn: [
+        "", 
+        "During the shift change, ",
+        "Before the concert, ",
+        "As the meeting wrapped up, "
+      ]
+    },
+    limit: 40
+  },
+  {
     template: "[[leadIn]]{name} explained that {subject} {be} updating {possAdj} records this week.",
     slots: {
       leadIn: ["", "After the planning session, ", "During the orientation, "]
@@ -840,7 +853,19 @@ const extinctionRecipes = [
     limit: 50
   },
   {
+    template: "After hearing {deadname}, {subject} corrected the form and asked everyone to share {possPron} pronouns again before thanking {object}.",
+    limit: 45
+  },
+  {
     template: "We reserved a badge for {object} because {subject} confirmed {possAdj} attendance.",
+    limit: 45
+  },
+  {
+    template:
+      "[[leadIn]]{name} reminded the host that {subject} {were} bringing {possAdj} laptop so {object} could queue the slides {reflexive}.",
+    slots: {
+      leadIn: ["", "At the registration desk, ", "Later that afternoon, "]
+    },
     limit: 45
   },
   {
@@ -945,12 +970,18 @@ function generateExtinctionTrials(limitCount = 40) {
     .slice(0, limitCount)
     .map((tpl) => tpl.text);
 
-  const trapSet = buildTrapPronounSet();
+  const fallbackTrap = buildTrapPronounSet();
+  const trapSets =
+    (appState.setup.extinctionPronounSets || []).filter((set) =>
+      Object.values(set || {}).some((v) => v && v.trim())
+    ) || [];
+  const trapPool = trapSets.length ? trapSets : [fallbackTrap];
   const correctGrammar = inferGrammarFromPronoun(pronouns.subject) || appState.setup.verbGrammar;
-  const trapGrammar = inferGrammarFromPronoun(trapSet.subject) || correctGrammar;
 
   return baseTemplates.map((tpl, idx) => {
     const useCorrect = idx % 2 === 0;
+    const trapSet = { ...fallbackTrap, ...trapPool[idx % trapPool.length] };
+    const trapGrammar = inferGrammarFromPronoun(trapSet.subject) || correctGrammar;
     const filled = applyLanguageRules(tpl, { pronouns, grammar: correctGrammar });
     const wrongVersion = applyLanguageRules(tpl, { pronouns: trapSet, grammar: trapGrammar });
     const text = useCorrect ? filled : wrongVersion;
@@ -977,13 +1008,26 @@ function generateDualTrials(sessionSeconds) {
 
 function generateEditingTrials(limitCount = 35) {
   const { pronouns, extinctionPronounSets } = appState.setup;
-  const wrongPools = {
+  const baseWrongPools = {
     subject: ["he", "she", "they", "ze", "xe"],
     object: ["him", "her", "them", "zir", "xem"],
     possAdj: ["his", "her", "their", "zir", "xyr"],
     possPron: ["his", "hers", "theirs", "zirs", "xyrs"],
     reflexive: ["himself", "herself", "themselves", "zirself", "xemself"]
   };
+
+  const wrongPools = Object.entries(baseWrongPools).reduce((acc, [key, list]) => {
+    const fromExtinction = (extinctionPronounSets || [])
+      .map((set) => (set[key] || "").trim())
+      .filter(Boolean);
+    const extras = [];
+    if (key !== "reflexive" && appState.setup.deadname) extras.push(appState.setup.deadname);
+    if (key === "possAdj" && appState.setup.deadname)
+      extras.push(`${appState.setup.deadname}'s`);
+
+    acc[key] = [...new Set([...list, ...fromExtinction, ...extras])];
+    return acc;
+  }, {});
 
   if (!limitCount) return [];
 
@@ -1251,6 +1295,10 @@ function renderDualTrial(trial) {
   sentence.className = "trial-text";
   pronounArea.appendChild(sentence);
 
+  const cue = document.createElement("div");
+  cue.className = "label dual-cue hidden";
+  pronounArea.appendChild(cue);
+
   const timerDisplay = document.createElement("div");
   timerDisplay.className = "dual-timer hidden";
   timerDisplay.textContent = "Select ODD or EVEN to start the timer.";
@@ -1277,10 +1325,17 @@ function renderDualTrial(trial) {
   let pronounStart = null;
   let timerStart = null;
   let timerInterval = null;
+  let cueTimeout = null;
   let pronounLocked = true;
   let activeSentence = "";
   let numberInterval = null;
   let pronounInterval = null;
+  const clearCue = () => {
+    if (cueTimeout) clearTimeout(cueTimeout);
+    cueTimeout = null;
+    cue.textContent = "";
+    cue.classList.add("hidden");
+  };
   const handleNumber = (value) => {
     numberStart = Date.now();
     numberValue.textContent = value;
@@ -1292,6 +1347,38 @@ function renderDualTrial(trial) {
     timerStart = null;
     timerDisplay.textContent = "Select ODD or EVEN to start the timer.";
     timerDisplay.classList.add("hidden");
+    clearCue();
+  };
+
+  const { pronouns } = appState.setup;
+  const trapSet = buildTrapPronounSet();
+  const cueSources = (appState.setup.extinctionPronounSets || []).filter((set) =>
+    Object.values(set || {}).some((v) => v && v.trim())
+  );
+  const cuePronouns = cueSources.flatMap((set) => Object.values(set || []));
+  if (appState.setup.deadname) cuePronouns.push(appState.setup.deadname);
+  if (trapSet) cuePronouns.push(...Object.values(trapSet));
+
+  const scheduleCue = () => {
+    clearCue();
+    const options = cuePronouns.filter(Boolean).map((v) => v.trim());
+    if (!options.length) return;
+    const time = Math.max(1200, 2500 + Math.random() * 1800);
+    cueTimeout = setTimeout(() => {
+      const choice = options[Math.floor(Math.random() * options.length)];
+      const promptTemplates = [
+        `Replace “${choice}” with {name}.`,
+        `Check pronouns: is it “${choice}” or {subject}?`,
+        `Say {name} instead of “${choice}.”`
+      ];
+      const tpl = promptTemplates[Math.floor(Math.random() * promptTemplates.length)];
+      cue.textContent = applyLanguageRules(tpl, { pronouns, grammar: appState.setup.verbGrammar });
+      cue.classList.remove("hidden");
+      cueTimeout = setTimeout(() => {
+        cue.classList.add("hidden");
+        scheduleCue();
+      }, 1600);
+    }, time);
   };
 
   const startTimer = () => {
@@ -1306,6 +1393,7 @@ function renderDualTrial(trial) {
       const millis = String(elapsedMs % 1000).padStart(3, "0");
       timerDisplay.textContent = `Timer: ${mins}:${secs}.${millis}`;
     }, 50);
+    scheduleCue();
   };
 
   const pronounTemplates = [
@@ -1316,8 +1404,6 @@ function renderDualTrial(trial) {
     "{name} said {subject} {were} proud of {reflexive}."
   ];
 
-  const { pronouns } = appState.setup;
-  const trapSet = buildTrapPronounSet();
   const fillSentence = () => {
     let text = "";
     let attempts = 0;
@@ -1354,6 +1440,7 @@ function renderDualTrial(trial) {
     clearInterval(pronounInterval);
     numberInterval = null;
     pronounInterval = null;
+    clearCue();
   };
 
   startNumberStream();
@@ -1366,6 +1453,7 @@ function renderDualTrial(trial) {
     appState.dualTimers.block = null;
     stopDualProgress();
     stopTimer();
+    clearCue();
     window.removeEventListener("keydown", keyHandler);
     appState.activeDualCleanup = null;
   };
