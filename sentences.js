@@ -293,6 +293,8 @@ function fillSlots(template, slotKeys) {
   });
   // Remove any unmatched [[...]] just in case
   result = result.replace(/\\[\\[[^\\]]+\\]\\]/g, "");
+  // Normalize spacing so clauses stay tidy
+  result = result.replace(/\s+,/g, ", ").replace(/\s{2,}/g, " ").trim();
   return result;
 }
 

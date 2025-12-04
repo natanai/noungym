@@ -137,7 +137,10 @@ function testMappingOptions() {
     extinctionPronounSets: []
   };
   const trials = generateMappingTrials(25);
+  const seen = new Set();
   trials.forEach((trial) => {
+    assert(!seen.has(trial.text), "Mapping trials should not repeat sentences in short sessions");
+    seen.add(trial.text);
     assert(trial.options.includes(trial.correct), "Correct option missing");
     const uniqueCount = new Set(trial.options.map((o) => o.toLowerCase())).size;
     assert(uniqueCount === trial.options.length, `Duplicate distractor detected in: ${trial.text}`);

@@ -351,21 +351,16 @@ const grammarLexicon = {
     "don't": "doesn't"
   }
 };
-// Always treat they/them as plural, regardless of override
 function resolveGrammar(subject, overrideGrammar, hint) {
   const normalized = (subject || "").trim().toLowerCase();
-  // If the subject is they/them, always use plural grammar
-  if (normalized === "they" || normalized === "them") {
-    return "plural";
-  }
   // Force singular for names when explicitly hinted
   if (hint === "name") {
     return "singular";
   }
-  // Use overrideGrammar only when provided and the subject is not they/them
-  if (overrideGrammar) {
-    return overrideGrammar;
-  }
+  // Respect explicit grammar overrides from the setup
+  if (overrideGrammar) return overrideGrammar;
+  // Default they/them to plural when no override is present
+  if (normalized === "they" || normalized === "them") return "plural";
   // Fall back to grammar inferred from the subject
   return inferGrammarFromPronoun(normalized);
 }
@@ -749,6 +744,11 @@ function generateMappingTrials(limitCount = 60) {
     return acc;
   }, {});
 
+  const patternQueues = roles.reduce((acc, role) => {
+    acc[role] = shuffle([...(patternsByRole[role] || [])]);
+    return acc;
+  }, {});
+
   const distractorPool = {
     subject: ["he", "she", "they", pronouns.object, pronouns.possAdj],
     object: ["him", "her", "them", pronouns.subject, pronouns.reflexive],
@@ -761,13 +761,21 @@ function generateMappingTrials(limitCount = 60) {
   const patternsAvailable = roles.some((role) => (patternsByRole[role] || []).length);
   if (!patternsAvailable) return trials;
 
+  let roleIndex = 0;
+  const seenSentences = new Set();
+
   while (trials.length < limitCount && safety < limitCount * 4) {
     safety += 1;
-    const role = roles[Math.floor(Math.random() * roles.length)];
+    const role = roles[roleIndex % roles.length];
+    roleIndex += 1;
     const patterns = patternsByRole[role] || [];
     if (!patterns.length) continue;
 
-    const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+    if (!patternQueues[role].length) {
+      patternQueues[role] = shuffle([...patterns]);
+    }
+
+    const pattern = patternQueues[role].pop();
     const correct = pronouns[role];
     if (!correct) continue;
 
@@ -777,6 +785,9 @@ function generateMappingTrials(limitCount = 60) {
       grammar: verbGrammar,
       hint: "name"
     });
+
+    if (seenSentences.has(sentence)) continue;
+    seenSentences.add(sentence);
 
     const blanked = sentence.replace(new RegExp(`\\b${escapeRegExp(correct)}\\b`), "___");
     const pool = distractorPool[role] || [];
