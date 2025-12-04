@@ -85,7 +85,7 @@ const BASE_SENTENCE_PATTERNS = [
   {
     id: "roster_deadname_correction",
     template:
-      "[[context_admin]]When the organizer read out {deadname}, {name} gently repeated {possAdj} current name.",
+      "[[context_admin]]when the organizer read out {deadname}, {name} gently repeated {possAdj} current name.",
     slots: ["context_admin"],
     pronounRolesUsed: ["possAdj"],
     modes: ["extinction", "editing", "dual"],
@@ -103,7 +103,7 @@ const BASE_SENTENCE_PATTERNS = [
   {
     id: "intro_feelings",
     template:
-      "[[context_intro]]The facilitator asked {object} how {subject} {be} feeling about sharing {possAdj} pronouns today.",
+      "[[context_intro]]the facilitator asked {object} how {subject} {be} feeling about sharing {possAdj} pronouns today.",
     slots: ["context_intro"],
     pronounRolesUsed: ["object", "subject", "possAdj"],
     modes: ["mapping", "extinction", "editing", "dual"],
@@ -112,7 +112,7 @@ const BASE_SENTENCE_PATTERNS = [
   {
     id: "chat_answered",
     template:
-      "[[context_meeting]]In the group chat, the moderator tagged {name} so everyone knew {subject} {have} already answered.",
+      "[[context_meeting]]in the group chat, the moderator tagged {name} so everyone knew {subject} {have} already answered.",
     slots: ["context_meeting"],
     pronounRolesUsed: ["subject"],
     modes: ["mapping", "extinction", "editing", "dual"],
@@ -130,7 +130,7 @@ const BASE_SENTENCE_PATTERNS = [
   {
     id: "photo_caption",
     template:
-      "[[context_casual]]Before posting the group photo, I asked {object} whether the caption matched {possAdj} current name.",
+      "[[context_casual]]before posting the group photo, I asked {object} whether the caption matched {possAdj} current name.",
     slots: ["context_casual"],
     pronounRolesUsed: ["object", "possAdj"],
     modes: ["mapping", "extinction", "editing", "dual"],
@@ -138,7 +138,7 @@ const BASE_SENTENCE_PATTERNS = [
   },
   {
     id: "badge_spelling",
-    template: "[[context_admin]]We double-checked that {possAdj} name was spelled correctly on the badge.",
+    template: "[[context_admin]]we double-checked that {possAdj} name was spelled correctly on the badge.",
     slots: ["context_admin"],
     pronounRolesUsed: ["possAdj"],
     modes: ["mapping", "extinction", "editing", "dual"],
@@ -165,7 +165,7 @@ const BASE_SENTENCE_PATTERNS = [
   {
     id: "family_correct_old_term",
     template:
-      "[[context_family]]When someone slipped and said {oldrelation}, I corrected it to {relation} and noted {subject} {have} updated pronouns.",
+      "[[context_family]]when someone slipped and said {oldrelation}, I corrected it to {relation} and noted {subject} {have} updated pronouns.",
     slots: ["context_family"],
     pronounRolesUsed: ["subject"],
     modes: ["mapping", "extinction", "editing", "dual"],
@@ -183,7 +183,7 @@ const BASE_SENTENCE_PATTERNS = [
   {
     id: "family_group_text",
     template:
-      "[[context_family]]In the family chat, I told everyone our {relation} goes by {name} now and that {subject} {be} using these pronouns.",
+      "[[context_family]]in the family chat, I told everyone our {relation} goes by {name} now and that {subject} {be} using these pronouns.",
     slots: ["context_family"],
     pronounRolesUsed: ["subject"],
     modes: ["mapping", "extinction", "editing", "dual"],
@@ -192,7 +192,7 @@ const BASE_SENTENCE_PATTERNS = [
   {
     id: "family_caption_fix",
     template:
-      "[[context_family]]When the album caption said {oldrelation}, I edited it to 'my {relation}' and circled {possAdj} pronouns.",
+      "[[context_family]]when the album caption said {oldrelation}, I edited it to 'my {relation}' and circled {possAdj} pronouns.",
     slots: ["context_family"],
     pronounRolesUsed: ["possAdj"],
     modes: ["mapping", "extinction", "editing", "dual"],
@@ -210,7 +210,7 @@ const BASE_SENTENCE_PATTERNS = [
   {
     id: "family_form_update",
     template:
-      "[[context_family]]While filling out forms, I selected {relation} and double-checked that the staff marked {possAdj} pronouns.",
+      "[[context_family]]while filling out forms, I selected {relation} and double-checked that the staff marked {possAdj} pronouns.",
     slots: ["context_family"],
     pronounRolesUsed: ["possAdj"],
     modes: ["mapping", "extinction", "editing", "dual"],
@@ -228,7 +228,7 @@ const BASE_SENTENCE_PATTERNS = [
   {
     id: "family_thank_you",
     template:
-      "[[context_family]]When thanking the team, I said our {relation} {name} {be} grateful and asked them to address {object} with the right pronouns.",
+      "[[context_family]]when thanking the team, I said our {relation} {name} {be} grateful and asked them to address {object} with the right pronouns.",
     slots: ["context_family"],
     pronounRolesUsed: ["subject", "object"],
     modes: ["mapping", "extinction", "editing", "dual"],
@@ -255,7 +255,7 @@ const BASE_SENTENCE_PATTERNS = [
   {
     id: "family_badge_table",
     template:
-      "[[context_family]]At the reunion badge table, I made sure the label read {relationposs} pronouns belong to {name} and match {possAdj} record.",
+      "[[context_family]]at the reunion badge table, I made sure the label read {relationposs} pronouns belong to {name} and match {possAdj} record.",
     slots: ["context_family"],
     pronounRolesUsed: ["possAdj"],
     modes: ["mapping", "extinction", "editing", "dual"],
@@ -264,7 +264,7 @@ const BASE_SENTENCE_PATTERNS = [
   {
     id: "family_chart_note",
     template:
-      "[[context_family]]Before the appointment, I described {name} as my {relation} and noted {possAdj} pronouns on the chart.",
+      "[[context_family]]before the appointment, I described {name} as my {relation} and noted {possAdj} pronouns on the chart.",
     slots: ["context_family"],
     pronounRolesUsed: ["possAdj"],
     modes: ["mapping", "extinction", "editing", "dual"],
@@ -273,7 +273,7 @@ const BASE_SENTENCE_PATTERNS = [
   {
     id: "family_story_share",
     template:
-      "[[context_family]]While sharing stories, I called {name} my {relation} and used {possAdj} pronouns so cousins could practice.",
+      "[[context_family]]while sharing stories, I called {name} my {relation} and used {possAdj} pronouns so cousins could practice.",
     slots: ["context_family"],
     pronounRolesUsed: ["possAdj"],
     modes: ["mapping", "extinction", "editing", "dual"],
@@ -295,6 +295,8 @@ function fillSlots(template, slotKeys) {
   result = result.replace(/\\[\\[[^\\]]+\\]\\]/g, "");
   // Normalize spacing so clauses stay tidy
   result = result.replace(/\s+,/g, ", ").replace(/\s{2,}/g, " ").trim();
+  // Ensure the sentence opens with a capital letter even after clause cleanup
+  result = result.charAt(0).toUpperCase() + result.slice(1);
   return result;
 }
 
@@ -323,6 +325,7 @@ function buildSentenceFromPattern(pattern, pronounSet, options = {}) {
   const { name, deadname, grammar, hint } = options;
   let text = fillSlots(pattern.template, pattern.slots);
   text = collapseDuplicateLead(text);
+  text = text.charAt(0).toUpperCase() + text.slice(1);
 
   const basePronouns = pronounSet || {};
   const tokens = {
