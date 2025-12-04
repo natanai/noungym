@@ -1013,9 +1013,30 @@ button.option:disabled {
     grid-template-columns: 1fr;
   }
 
+  .card {
+    padding: 16px;
+  }
+
   .card-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .panel {
+    padding: 14px;
+  }
+
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .test-style-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .test-style {
+    align-items: stretch;
   }
 
   .content-grid {
@@ -1025,6 +1046,10 @@ button.option:disabled {
   .actions {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .actions button {
+    width: 100%;
   }
 
   .trial-text {
