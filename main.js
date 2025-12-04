@@ -1,6 +1,6 @@
 const pronounPresets = [
    {
-    key: "theyThemSingular",
+    key: "theyThem",
     label: "They/Them",
     pronouns: {
       subject: "they",
@@ -332,14 +332,23 @@ const grammarLexicon = {
     "don't": "doesn't"
   }
 };
-
+// Always treat they/them as plural, regardless of override
 function resolveGrammar(subject, overrideGrammar, hint) {
   const normalized = (subject || "").trim().toLowerCase();
-  const preferred = overrideGrammar || inferGrammarFromPronoun(normalized);
-  if (hint === "name") return "singular";
-  if (overrideGrammar) return preferred;
-  const forcePlural = normalized === "they" || normalized === "them";
-  return forcePlural ? "plural" : preferred;
+  // If the subject is they/them, always use plural grammar
+  if (normalized === "they" || normalized === "them") {
+    return "plural";
+  }
+  // Force singular for names when explicitly hinted
+  if (hint === "name") {
+    return "singular";
+  }
+  // Use overrideGrammar only when provided and the subject is not they/them
+  if (overrideGrammar) {
+    return overrideGrammar;
+  }
+  // Fall back to grammar inferred from the subject
+  return inferGrammarFromPronoun(normalized);
 }
 
 function fillSlots(template, slots = {}) {
