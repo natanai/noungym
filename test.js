@@ -28,18 +28,7 @@ const pronounSets = [
       possPron: "theirs",
       reflexive: "themselves"
     },
-    grammar: "plural"
-  },
-  {
-    label: "they/them (singular)",
-    pronouns: {
-      subject: "they",
-      object: "them",
-      possAdj: "their",
-      possPron: "theirs",
-      reflexive: "themselves"
-    },
-    grammar: "singular"
+    grammar: "auto"
   },
   {
     label: "she/her",
@@ -133,7 +122,7 @@ function testMappingOptions() {
   appState.setup = {
     ...appState.setup,
     pronouns: pronounSets[0].pronouns,
-    verbGrammar: "plural",
+    verbGrammar: "auto",
     extinctionPronounSets: []
   };
   const trials = generateMappingTrials(25);
@@ -151,7 +140,7 @@ function testEditingVerbGrammarHint() {
   appState.setup = {
     ...appState.setup,
     pronouns: pronounSets[0].pronouns,
-    verbGrammar: "plural",
+    verbGrammar: "auto",
     extinctionPronounSets: []
   };
   const editingPatternCount = BASE_SENTENCE_PATTERNS.filter((p) =>
@@ -161,6 +150,40 @@ function testEditingVerbGrammarHint() {
   const badgeTrial = trials.find((trial) => trial.text.includes("name was spelled"));
   assert(badgeTrial, "Expected badge spelling trial to be generated");
   assert(badgeTrial.grammar === "singular", "Badge spelling grammar should be singular");
+}
+
+function testTheyOverridesStayPlural() {
+  const theyPronouns = pronounSets[0].pronouns;
+  const resolved = resolveGrammar(theyPronouns.subject, "singular");
+  assert(resolved === "plural", "They/them should resist singular verb overrides");
+
+  const resolvedWithNameHint = resolveGrammar(theyPronouns.subject, "singular", "name");
+  assert(resolvedWithNameHint === "plural", "Name hints should not flip they/them to singular");
+
+  const pattern = BASE_SENTENCE_PATTERNS.find((p) => p.id === "intro_feelings");
+  const sentence = buildSentenceFromPattern(pattern, theyPronouns, {
+    name: "Alex",
+    grammar: "singular",
+    hint: "name"
+  });
+
+  assert(!sentence.toLowerCase().includes("they is"), "They/them should not pair with 'is'");
+  assert(sentence.toLowerCase().includes("they are"), "They/them should keep plural be-verb");
+}
+
+function testConservativeModeReducesTheyDensity() {
+  const pattern = BASE_SENTENCE_PATTERNS.find((p) => p.id === "intro_feelings");
+  const sentence = buildSentenceFromPattern(pattern, pronounSets[0].pronouns, {
+    name: "Taylor",
+    grammar: "conservative"
+  });
+
+  const lower = sentence.toLowerCase();
+  const theyCount = (lower.match(/\bthey\b/g) || []).length;
+  const nameCount = (sentence.match(/Taylor/g) || []).length;
+  assert(theyCount <= 2, `Conservative mode should reduce they density: ${sentence}`);
+  assert(nameCount >= 1, `Conservative mode should repeat the name: ${sentence}`);
+  assert(lower.includes("they are"), "Conservative mode should still use plural be-verb");
 }
 
 function testDuplicateLeadCleanup() {
@@ -194,13 +217,13 @@ function testDoubleIntroCollapse() {
     relation: "cousin",
     oldRelation: "old term",
     pronouns: pronounSets[0].pronouns,
-    verbGrammar: "plural",
+    verbGrammar: "auto",
     extinctionPronounSets: []
   };
 
   const sentence = buildSentenceFromPattern(pattern, pronounSets[0].pronouns, {
     name: "Nat",
-    grammar: "plural",
+    grammar: resolveGrammar(pronounSets[0].pronouns.subject, "auto"),
     relation: "cousin",
     oldRelation: "old term"
   });
@@ -217,6 +240,8 @@ function run() {
   testGrammarAcrossTemplates();
   testMappingOptions();
   testEditingVerbGrammarHint();
+  testTheyOverridesStayPlural();
+  testConservativeModeReducesTheyDensity();
   testDuplicateLeadCleanup();
   testDoubleIntroCollapse();
   console.log("All tests passed.");
