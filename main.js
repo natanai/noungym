@@ -508,7 +508,7 @@ function generateEditingTrials() {
       wrongType: "subject"
     },
     {
-      text: "The director introduced {reflexive} and asked us to support {object} on {possAdj} first day.",
+      text: "The director, {name}, introduced {reflexive} and asked us to support {object} on {possAdj} first day.",
       wrongType: "reflexive"
     },
     {
@@ -710,14 +710,21 @@ function renderDualTrial(trial) {
   sentence.className = "trial-text";
   pronounArea.appendChild(sentence);
 
+  const timerDisplay = document.createElement("div");
+  timerDisplay.className = "dual-timer hidden";
+  timerDisplay.textContent = "Select ODD or EVEN to start the timer.";
+  pronounArea.appendChild(timerDisplay);
+
   const pronounControls = document.createElement("div");
   pronounControls.className = "grid-two mobile-controls";
   const correctBtn = document.createElement("button");
   correctBtn.className = "option";
   correctBtn.textContent = "CORRECT";
+  correctBtn.disabled = true;
   const wrongBtn = document.createElement("button");
   wrongBtn.className = "option";
   wrongBtn.textContent = "WRONG";
+  wrongBtn.disabled = true;
   pronounControls.append(correctBtn, wrongBtn);
   pronounArea.appendChild(pronounControls);
 
@@ -727,9 +734,32 @@ function renderDualTrial(trial) {
 
   let numberStart = Date.now();
   let pronounStart = Date.now();
+  let timerStart = null;
+  let timerInterval = null;
+  let pronounLocked = true;
   const handleNumber = (value) => {
     numberStart = Date.now();
     numberValue.textContent = value;
+  };
+
+  const stopTimer = () => {
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = null;
+    timerStart = null;
+    timerDisplay.textContent = "Select ODD or EVEN to start the timer.";
+    timerDisplay.classList.add("hidden");
+  };
+
+  const startTimer = () => {
+    stopTimer();
+    timerStart = Date.now();
+    timerDisplay.classList.remove("hidden");
+    timerInterval = setInterval(() => {
+      const elapsedSeconds = Math.floor((Date.now() - timerStart) / 1000);
+      const mins = String(Math.floor(elapsedSeconds / 60)).padStart(2, "0");
+      const secs = String(elapsedSeconds % 60).padStart(2, "0");
+      timerDisplay.textContent = `Timer: ${mins}:${secs}`;
+    }, 200);
   };
 
   const pronounTemplates = [
@@ -766,6 +796,7 @@ function renderDualTrial(trial) {
     clearInterval(numberInterval);
     clearInterval(pronounInterval);
     clearTimeout(appState.dualTimers.block);
+    stopTimer();
     window.removeEventListener("keydown", keyHandler);
   };
 
@@ -775,12 +806,21 @@ function renderDualTrial(trial) {
     const correct = (choice === "even" && isEven) || (choice === "odd" && !isEven);
     flashFeedback(correct);
     recordResult("dual", correct, numberStart, { task: "number" });
+    pronounLocked = false;
+    correctBtn.disabled = false;
+    wrongBtn.disabled = false;
+    startTimer();
   };
 
   const handlePronounAnswer = (claimedCorrect) => {
+    if (pronounLocked) return;
     const correct = sentence.dataset.correct === "true";
     const overall = claimedCorrect === correct;
     handleAnswer(overall, () => {}, "dual", pronounStart, { task: "pronoun" });
+    pronounLocked = true;
+    correctBtn.disabled = true;
+    wrongBtn.disabled = true;
+    stopTimer();
   };
 
   oddBtn.addEventListener("click", () => handleNumberAnswer("odd"));
@@ -814,7 +854,7 @@ function renderEditingTrial(trial) {
   const instructions = document.createElement("p");
   instructions.className = "label";
   instructions.textContent =
-    "Click the wrong word and choose the right pronoun, then press Continue.";
+    "Click the wrong word and choose the right pronoun, adjust is/are if needed, then press Continue.";
   trialContainer.appendChild(instructions);
 
   const tokens = trial.text.split(" ");
@@ -839,32 +879,40 @@ function renderEditingTrial(trial) {
   tokens.forEach((tok, idx) => {
     const span = document.createElement("span");
     const cleaned = tok.replace(/[.,!?]/g, "");
-    const isWrong = cleaned.toLowerCase() === trial.wrongWord.toLowerCase();
+    const normalized = cleaned.toLowerCase();
+    const isWrong = normalized === trial.wrongWord.toLowerCase();
+    const isVerbSwitchable = normalized === "is" || normalized === "are";
     if (isWrong) totalWrong += 1;
     span.className = "token";
     span.textContent = cleaned;
     span.addEventListener("click", () => {
-      if (!isWrong) return;
+      if (!isWrong && !isVerbSwitchable) return;
       if (span.dataset.replaced === "true") return;
       const select = document.createElement("select");
       select.className = "dropdown";
-      select.setAttribute("aria-label", "Choose replacement pronoun");
-      trial.options.forEach((o) => {
+      select.setAttribute(
+        "aria-label",
+        isVerbSwitchable ? "Choose replacement verb" : "Choose replacement pronoun"
+      );
+      const options = isVerbSwitchable ? ["is", "are"] : trial.options;
+      options.forEach((o) => {
         const opt = document.createElement("option");
         opt.value = o;
         opt.textContent = o;
         select.appendChild(opt);
       });
-      select.value = trial.wrongWord;
-      select.addEventListener("change", () => {
-        const isCorrect = select.value === trial.correct;
-        corrections.set(idx, isCorrect);
-        select.classList.toggle("incorrect", !isCorrect);
-        select.classList.toggle("correct", isCorrect);
-        if (updateReadyState()) continueBtn.focus();
-      });
+      select.value = isVerbSwitchable ? normalized : trial.wrongWord;
+      if (isWrong) {
+        select.addEventListener("change", () => {
+          const isCorrect = select.value === trial.correct;
+          corrections.set(idx, isCorrect);
+          select.classList.toggle("incorrect", !isCorrect);
+          select.classList.toggle("correct", isCorrect);
+          if (updateReadyState()) continueBtn.focus();
+        });
+        corrections.set(idx, false);
+      }
       span.replaceWith(select);
-      corrections.set(idx, false);
       span.dataset.replaced = "true";
       select.focus();
     });
