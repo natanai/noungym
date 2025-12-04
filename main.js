@@ -120,6 +120,7 @@ const appState = {
   trials: [],
   currentTrialIndex: 0,
   results: { mapping: [], extinction: [], dual: [], editing: [] },
+  streaks: { mapping: { current: 0, best: 0 }, extinction: { current: 0, best: 0 }, dual: { current: 0, best: 0 }, editing: { current: 0, best: 0 } },
   dualTimers: { number: null, pronoun: null, block: null, progress: null },
   activeDualCleanup: null,
   sentenceUsage: { patterns: new Set(), sentences: new Set() }
@@ -872,7 +873,9 @@ function generateMappingTrials(limitCount = 60) {
       correct,
       options,
       blanks: 1,
-      role
+      role,
+      patternId: pattern?.id || null,
+      sourceSentence: sentence
     });
   }
 
@@ -939,7 +942,10 @@ function generateExtinctionTrials(limitCount = 40) {
       type: "extinction",
       text: preferred.sentence,
       isCorrect: preferred.isCorrect,
-      mode: trials.length % 2 === 0 ? "flag" : "gng"
+      mode: trials.length % 2 === 0 ? "flag" : "gng",
+      patternId: pattern?.id || null,
+      trapSignature: trapSet,
+      grammarUsed: preferred.isCorrect ? verbGrammar : trapGrammar
     });
     markSentenceUsage(pattern, preferred.sentence);
 
@@ -1202,10 +1208,44 @@ function flashFeedback(isCorrect) {
   }, 900);
 }
 
+function timingBucket(ms) {
+  if (!Number.isFinite(ms)) return "unknown";
+  if (ms < 1000) return "<1s";
+  if (ms < 2000) return "1-2s";
+  if (ms < 3500) return "2-3.5s";
+  return ">3.5s";
+}
+
+function updateStreaks(type, correct) {
+  if (!appState.streaks[type]) appState.streaks[type] = { current: 0, best: 0 };
+  const streak = appState.streaks[type];
+  if (correct) {
+    streak.current += 1;
+    streak.best = Math.max(streak.best, streak.current);
+  } else {
+    streak.current = 0;
+  }
+  return { ...streak };
+}
+
 function recordResult(type, correct, startTime, meta = {}) {
   const elapsed = Date.now() - startTime;
+  const bucket = timingBucket(elapsed);
+  const streak = updateStreaks(type, correct);
   if (!appState.results[type]) appState.results[type] = [];
-  appState.results[type].push({ correct, rt: elapsed, ...meta });
+  appState.results[type].push({
+    correct,
+    rt: elapsed,
+    bucket,
+    mode: type,
+    streak: streak.current,
+    bestStreak: streak.best,
+    timestamp: Date.now(),
+    trialIndex: appState.currentTrialIndex,
+    patternId: meta.patternId || null,
+    sentence: meta.sentence || meta.text || null,
+    ...meta
+  });
 }
 
 function handleAnswer(correct, onAdvance, type, startTime, meta = {}, options = {}) {
@@ -1287,7 +1327,11 @@ function renderMappingTrial(trial) {
     btn.className = "option";
     btn.textContent = opt;
     btn.addEventListener("click", () =>
-      handleAnswer(opt === trial.correct, nextTrial, "mapping", start, { role: trial.role }, {
+      handleAnswer(opt === trial.correct, nextTrial, "mapping", start, {
+        role: trial.role,
+        patternId: trial.patternId,
+        sentence: trial.sourceSentence
+      }, {
         onRetry: renderTrial
       })
     );
@@ -1319,7 +1363,9 @@ function renderExtinctionTrial(trial) {
   okBtn.addEventListener("click", () =>
     handleAnswer(trial.isCorrect, nextTrial, "extinction", start, {
       mode: trial.mode,
-      expected: trial.isCorrect
+      expected: trial.isCorrect,
+      patternId: trial.patternId,
+      sentence: trial.text
     }, { onRetry: renderTrial })
   );
 
@@ -1329,7 +1375,9 @@ function renderExtinctionTrial(trial) {
   wrongBtn.addEventListener("click", () =>
     handleAnswer(!trial.isCorrect, nextTrial, "extinction", start, {
       mode: trial.mode,
-      expected: trial.isCorrect
+      expected: trial.isCorrect,
+      patternId: trial.patternId,
+      sentence: trial.text
     }, { onRetry: renderTrial })
   );
 
@@ -1425,6 +1473,7 @@ function renderDualTrial(trial) {
   let cueTimeout = null;
   let pronounLocked = true;
   let activeSentence = "";
+  let activePatternId = null;
   let numberInterval = null;
   let pronounInterval = null;
   const clearCue = () => {
@@ -1500,6 +1549,7 @@ function renderDualTrial(trial) {
         (pattern && isPatternUsed(pattern) && unusedPatternCount(pronounPatterns) > 0))
     );
     activeSentence = text;
+    activePatternId = pattern?.id || null;
     sentence.textContent = text;
     markSentenceUsage(pattern, text);
   };
@@ -1577,7 +1627,11 @@ function renderDualTrial(trial) {
     if (pronounLocked) return;
     const correct = sentence.dataset.correct === "true";
     const overall = claimedCorrect === correct;
-    handleAnswer(overall, () => {}, "dual", pronounStart, { task: "pronoun" });
+    handleAnswer(overall, () => {}, "dual", pronounStart, {
+      task: "pronoun",
+      patternId: activePatternId,
+      sentence: activeSentence
+    });
     pronounLocked = true;
     correctBtn.disabled = true;
     wrongBtn.disabled = true;
@@ -1799,7 +1853,8 @@ function renderEditingTrial(trial) {
     if (!ready) return;
     handleAnswer(true, nextTrial, "editing", start, {
       wrongType: trial.wrongType,
-      patternId: trial.patternId
+      patternId: trial.patternId,
+      sentence: trial.text
     });
   });
 
@@ -1874,7 +1929,12 @@ function calculateStats(entries) {
       medianCorrect: "—",
       medianIncorrect: "—",
       medianCorrectValue: null,
-    medianIncorrectValue: null
+      medianIncorrectValue: null,
+      accuracyValue: null,
+      rtBuckets: {},
+      uniquePatterns: 0,
+      bestStreak: 0,
+      lastStreak: 0
     };
 
   const correctEntries = entries.filter((e) => e.correct);
@@ -1884,6 +1944,14 @@ function calculateStats(entries) {
   const allMedian = median(entries.map((e) => e.rt));
   const correctMedian = median(correctEntries.map((e) => e.rt));
   const incorrectMedian = median(incorrectEntries.map((e) => e.rt));
+  const buckets = entries.reduce((acc, entry) => {
+    const key = entry.bucket || timingBucket(entry.rt);
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const patterns = new Set(entries.map((e) => e.patternId).filter(Boolean));
+  const bestStreak = entries.reduce((max, entry) => Math.max(max, entry.bestStreak || entry.streak || 0), 0);
+  const lastStreak = entries.length ? entries[entries.length - 1].streak || 0 : 0;
 
   return {
     accuracy: `${accuracy}%`,
@@ -1893,7 +1961,12 @@ function calculateStats(entries) {
     medianCorrect: correctMedian !== null ? formatDuration(correctMedian) : "—",
     medianIncorrect: incorrectMedian !== null ? formatDuration(incorrectMedian) : "—",
     medianCorrectValue: correctMedian,
-    medianIncorrectValue: incorrectMedian
+    medianIncorrectValue: incorrectMedian,
+    accuracyValue: accuracy,
+    rtBuckets: buckets,
+    uniquePatterns: patterns.size,
+    bestStreak,
+    lastStreak
   };
 }
 
@@ -1935,6 +2008,68 @@ function summarizeLatencyByGroup(entries = [], selector, labelFactory) {
       };
     })
     .filter(Boolean);
+}
+
+function renderBarChart(labels = [], values = [], options = {}) {
+  const { maxValue, valueFormatter, barColor = "#7c3aed" } = options;
+  const chart = document.createElement("div");
+  chart.className = "chart chart--bars";
+  const domainMax = maxValue || Math.max(...values, 1);
+  labels.forEach((label, idx) => {
+    const value = values[idx] || 0;
+    const height = Math.min(100, Math.round((value / domainMax) * 100));
+    const bar = document.createElement("div");
+    bar.className = "chart-bar";
+    const fill = document.createElement("div");
+    fill.className = "chart-bar-fill";
+    fill.style.height = `${height}%`;
+    fill.style.backgroundColor = barColor;
+    const valueLabel = document.createElement("span");
+    valueLabel.className = "chart-value";
+    valueLabel.textContent = typeof valueFormatter === "function" ? valueFormatter(value) : value;
+    const textLabel = document.createElement("span");
+    textLabel.className = "chart-label";
+    textLabel.textContent = label;
+    bar.append(fill, valueLabel, textLabel);
+    chart.appendChild(bar);
+  });
+  return chart;
+}
+
+function mergeBucketCounts(statsByMode, bucketLabels) {
+  return bucketLabels.map((bucket) =>
+    Object.values(statsByMode || {}).reduce((acc, stats) => acc + (stats?.rtBuckets?.[bucket] || 0), 0)
+  );
+}
+
+function buildRecommendations(modes, statsByMode, latencyGroups = []) {
+  const recs = [];
+  modes.forEach(({ key, label }) => {
+    const stats = statsByMode[key];
+    if (!stats || !stats.count) return;
+    if (stats.accuracyValue !== null && stats.accuracyValue < 90) {
+      recs.push(`${label}: Accuracy is at ${stats.accuracy}. Slow down on traps and review each sentence before clicking.`);
+    }
+    if (
+      stats.medianIncorrectValue !== null &&
+      stats.medianCorrectValue !== null &&
+      stats.medianIncorrectValue - stats.medianCorrectValue > 400
+    ) {
+      recs.push(`${label}: Mistakes are slower than correct answers. Try verbalizing the pronoun swap before responding.`);
+    }
+    if (stats.bestStreak < 3 && stats.count >= 3) {
+      recs.push(`${label}: Build confidence with short streaks. Aim for three correct in a row, then increase speed.`);
+    }
+  });
+
+  const slowGroup = latencyGroups?.[0];
+  if (slowGroup) {
+    recs.push(
+      `Speed focus: ${slowGroup.label} is the slowest at ${formatDuration(slowGroup.median)}. Run a few quick reps here.`
+    );
+  }
+
+  return recs.slice(0, 6);
 }
 
 function loadSavedSummary() {
@@ -2100,11 +2235,70 @@ function showSummary() {
       <p>Accuracy: ${stats.accuracy}</p>
       <p>Typical response: ${stats.median}</p>
       <p class="helper">Faster hits: ${stats.medianCorrect} • When unsure: ${stats.medianIncorrect}</p>
+      <p class="helper">Patterns touched: ${stats.uniquePatterns} • Best streak: ${stats.bestStreak}</p>
       <p class="helper">${trialNote}</p>
     `;
     summaryStats.appendChild(card);
     savedStats[mode.label] = { accuracy: stats.accuracy, median: stats.median };
   });
+
+  const bucketLabels = ["<1s", "1-2s", "2-3.5s", ">3.5s"];
+  const modeLabels = modes.map((m) => m.label);
+  const accuracyValues = modes.map((m) => statsByMode[m.key]?.accuracyValue || 0);
+  const medianValues = modes.map((m) => statsByMode[m.key]?.medianValue || 0);
+  const rtBuckets = mergeBucketCounts(statsByMode, bucketLabels);
+
+  if (modes.some((mode) => (statsByMode[mode.key]?.count || 0) > 0)) {
+    const chartCard = document.createElement("div");
+    chartCard.className = "summary-card summary-card--chart";
+    chartCard.innerHTML = `
+      <p class="label">Visual snapshot</p>
+      <p class="helper">Accuracy and speed by mode so you can spot quick wins.</p>
+    `;
+    const chartWrap = document.createElement("div");
+    chartWrap.className = "chart-grid";
+    const accuracyChart = renderBarChart(modeLabels, accuracyValues, {
+      maxValue: 100,
+      valueFormatter: (v) => `${Math.round(v)}%`
+    });
+    const rtChart = renderBarChart(
+      modeLabels,
+      medianValues,
+      {
+        maxValue: Math.max(...medianValues.filter((v) => Number.isFinite(v)), 1),
+        valueFormatter: (v) => (v ? formatDuration(v) : "—"),
+        barColor: "#fb923c"
+      }
+    );
+    const accuracyLabel = document.createElement("p");
+    accuracyLabel.className = "chart-caption";
+    accuracyLabel.textContent = "Accuracy by mode";
+    const rtLabel = document.createElement("p");
+    rtLabel.className = "chart-caption";
+    rtLabel.textContent = "Median response time";
+    const accuracyBlock = document.createElement("div");
+    accuracyBlock.append(accuracyLabel, accuracyChart);
+    const rtBlock = document.createElement("div");
+    rtBlock.append(rtLabel, rtChart);
+    chartWrap.append(accuracyBlock, rtBlock);
+    chartCard.appendChild(chartWrap);
+    summaryStats.appendChild(chartCard);
+  }
+
+  if (rtBuckets.some((count) => count)) {
+    const bucketCard = document.createElement("div");
+    bucketCard.className = "summary-card summary-card--chart";
+    bucketCard.innerHTML = `
+      <p class="label">Response time spread</p>
+      <p class="helper">How often you answered within each time band across all modes.</p>
+    `;
+    const bucketChart = renderBarChart(bucketLabels, rtBuckets, {
+      barColor: "#22c55e",
+      valueFormatter: (v) => `${v}x`
+    });
+    bucketCard.appendChild(bucketChart);
+    summaryStats.appendChild(bucketCard);
+  }
 
   const gapEntries = modes
     .map(({ key, label }) => {
@@ -2181,6 +2375,25 @@ function showSummary() {
     summaryStats.appendChild(slowCard);
   }
 
+  const recommendations = buildRecommendations(modes, statsByMode, slowestGroups);
+  if (recommendations.length) {
+    const recCard = document.createElement("div");
+    recCard.className = "summary-card";
+    recCard.innerHTML = `
+      <p class="label">What to do with this</p>
+      <p class="helper">Target the areas that will move your practice fastest.</p>
+    `;
+    const list = document.createElement("ul");
+    list.className = "stat-list";
+    recommendations.forEach((tip) => {
+      const li = document.createElement("li");
+      li.textContent = tip;
+      list.appendChild(li);
+    });
+    recCard.appendChild(list);
+    summaryStats.appendChild(recCard);
+  }
+
   storeSavedSummary({ timestamp: Date.now(), stats: savedStats });
 }
 
@@ -2192,6 +2405,12 @@ function resetApp() {
   appState.trials = [];
   appState.currentTrialIndex = 0;
   appState.results = { mapping: [], extinction: [], dual: [], editing: [] };
+  appState.streaks = {
+    mapping: { current: 0, best: 0 },
+    extinction: { current: 0, best: 0 },
+    dual: { current: 0, best: 0 },
+    editing: { current: 0, best: 0 }
+  };
   resetSentenceUsage();
   trialContainer.innerHTML = "";
   trialCounter.textContent = "";
