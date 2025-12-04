@@ -119,15 +119,15 @@ const appState = {
   },
   trials: [],
   currentTrialIndex: 0,
-  results: { mapping: [], extinction: [], dual: [], editing: [] },
-  streaks: { mapping: { current: 0, best: 0 }, extinction: { current: 0, best: 0 }, dual: { current: 0, best: 0 }, editing: { current: 0, best: 0 } },
+  results: { mapping: [], dual: [], editing: [] },
+  streaks: { mapping: { current: 0, best: 0 }, dual: { current: 0, best: 0 }, editing: { current: 0, best: 0 } },
   dualTimers: { number: null, pronoun: null, block: null, progress: null },
   activeDualCleanup: null,
   sentenceUsage: { patterns: new Set(), sentences: new Set() }
 };
 
 const defaultSessionMinutes = 5;
-const pacingSecondsPerTrial = { mapping: 6, extinction: 6, editing: 7 };
+const pacingSecondsPerTrial = { mapping: 6, editing: 7 };
 
 const summaryStorageKey = "noun-gym-last-summary";
 
@@ -572,7 +572,6 @@ function collectSetupPayload(formData) {
     },
     testStyles: {
       mapping: formData.get("testStyleMapping") !== null,
-      extinction: formData.get("testStyleExtinction") !== null,
       dual: formData.get("testStyleDual") !== null,
       editing: formData.get("testStyleEditing") !== null
     },
@@ -620,7 +619,6 @@ function decodeSetupPayload(search) {
 
   const testStyles = {
     mapping: params.has("test_mapping"),
-    extinction: params.has("test_extinction"),
     dual: params.has("test_dual"),
     editing: params.has("test_editing")
   };
@@ -697,7 +695,6 @@ function applySetupPayloadToForm(payload) {
   if (payload.testStyles) {
     const toggles = {
       testStyleMapping: payload.testStyles.mapping,
-      testStyleExtinction: payload.testStyles.extinction,
       testStyleDual: payload.testStyles.dual,
       testStyleEditing: payload.testStyles.editing
     };
@@ -882,81 +879,6 @@ function generateMappingTrials(limitCount = 60) {
   return trials;
 }
 
-function generateExtinctionTrials(limitCount = 40) {
-  const { pronouns, verbGrammar, targetName, deadname, extinctionPronounSets } = appState.setup;
-
-  if (!limitCount) return [];
-
-  const patterns = prioritizePatterns(getPatternsForModeAndRole("extinction"));
-  if (!patterns.length) return [];
-
-  const fallbackTrap = buildTrapPronounSet();
-  const trapSets =
-    (extinctionPronounSets || []).filter((set) =>
-      Object.values(set || {}).some((v) => v && v.trim())
-    ) || [];
-  const trapPool = trapSets.length ? trapSets : [fallbackTrap];
-
-  const trials = [];
-  let idx = 0;
-  let favorCorrect = true;
-
-  while (trials.length < limitCount) {
-    const pattern = patterns[idx % patterns.length];
-    const trapSet = { ...fallbackTrap, ...trapPool[idx % trapPool.length] };
-    const trapGrammar = inferGrammarFromPronoun(trapSet.subject) || verbGrammar;
-
-    const correctSentence = buildSentence(pattern, pronouns, {
-      name: targetName,
-      deadname,
-      grammar: verbGrammar,
-      hint: "name"
-    });
-
-    const wrongSentence = buildSentence(pattern, trapSet, {
-      name: targetName,
-      deadname,
-      grammar: trapGrammar,
-      hint: "name"
-    });
-
-    const candidates = [
-      { sentence: correctSentence, isCorrect: true },
-      { sentence: wrongSentence, isCorrect: false }
-    ].filter(({ sentence }) => !isSentenceUsed(sentence));
-
-    if (isPatternUsed(pattern) && unusedPatternCount(patterns) > 0) {
-      idx += 1;
-      if (idx > limitCount * 2) break;
-      continue;
-    }
-
-    const preferred = candidates.find((c) => c.isCorrect === favorCorrect) || candidates[0];
-    if (!preferred) {
-      idx += 1;
-      if (idx > limitCount * 2) break;
-      continue;
-    }
-
-    trials.push({
-      type: "extinction",
-      text: preferred.sentence,
-      isCorrect: preferred.isCorrect,
-      mode: trials.length % 2 === 0 ? "flag" : "gng",
-      patternId: pattern?.id || null,
-      trapSignature: trapSet,
-      grammarUsed: preferred.isCorrect ? verbGrammar : trapGrammar
-    });
-    markSentenceUsage(pattern, preferred.sentence);
-
-    favorCorrect = !favorCorrect;
-    idx += 1;
-    if (idx > limitCount * 3) break;
-  }
-
-  return trials.slice(0, limitCount);
-}
-
 function generateDualTrials(sessionSeconds) {
   const duration = Math.max(45, Math.round(sessionSeconds || 60));
   return [
@@ -1038,10 +960,8 @@ function generateEditingTrials(limitCount = 35) {
       wrongEntries.push({ type: role, correct: correctPronoun, wrong });
     });
 
-    if (!wrongEntries.length) {
-      idx += 1;
-      continue;
-    }
+    const keepSentenceCorrect = Math.random() < 0.35;
+    const shouldCorrupt = wrongEntries.length && !keepSentenceCorrect;
 
     const resolvedGrammar =
       pattern.grammarHint === "singular"
@@ -1056,13 +976,14 @@ function generateEditingTrials(limitCount = 35) {
     });
 
     let mutated = baseSentence;
-    wrongEntries.forEach((entry) => {
+    const activeWrongEntries = shouldCorrupt ? wrongEntries : [];
+    activeWrongEntries.forEach((entry) => {
       const patternRegex = new RegExp(`\\b${escapeRegExp(entry.correct || "")}\\b`);
       mutated = mutated.replace(patternRegex, entry.wrong);
     });
 
     const optionSet = new Set();
-    wrongEntries.forEach((entry) => {
+    activeWrongEntries.forEach((entry) => {
       optionSet.add(entry.correct);
       optionSet.add(entry.wrong);
       (wrongPools[entry.type] || []).forEach((p) => optionSet.add(p));
@@ -1070,28 +991,30 @@ function generateEditingTrials(limitCount = 35) {
     Object.values(pronouns || {}).forEach((p) => optionSet.add(p));
 
     const options = shuffle([...optionSet].filter(Boolean));
-    const primary = wrongEntries[0];
+    const primary = activeWrongEntries[0];
+    const trialText = shouldCorrupt ? mutated : baseSentence;
 
-    if (isSentenceUsed(mutated)) {
+    if (isSentenceUsed(trialText)) {
       idx += 1;
       continue;
     }
 
     trials.push({
       type: "editing",
-      text: mutated,
+      text: trialText,
       correct: primary?.correct,
       wrong: primary?.wrong,
       wrongType: primary?.type,
       wrongWord: primary?.wrong,
-      wrongWords: wrongEntries,
+      wrongWords: activeWrongEntries,
       options,
       correctSubject: pronouns.subject,
       grammar: resolvedGrammar,
-      patternId: pattern.id
+      patternId: pattern.id,
+      needsCorrection: shouldCorrupt
     });
 
-    markSentenceUsage(pattern, mutated);
+    markSentenceUsage(pattern, trialText);
 
     idx += 1;
   }
@@ -1101,7 +1024,7 @@ function generateEditingTrials(limitCount = 35) {
 
 function calculateTrialPlan(selectedModes, sessionMinutes) {
   const targetSeconds = Math.max(60, sessionMinutes * 60);
-  const activeModes = ["mapping", "extinction", "editing"].filter(
+  const activeModes = ["mapping", "editing"].filter(
     (mode) => selectedModes[mode]
   );
 
@@ -1156,7 +1079,6 @@ function buildTrials(selectedModes, sessionMinutes) {
 
   const buckets = [];
   if (selectedModes.mapping) buckets.push(generateMappingTrials(counts.mapping));
-  if (selectedModes.extinction) buckets.push(generateExtinctionTrials(counts.extinction));
   if (selectedModes.editing) buckets.push(generateEditingTrials(counts.editing));
   if (selectedModes.dual) buckets.push(generateDualTrials(dualSeconds || sessionMinutes * 60));
 
@@ -1338,52 +1260,6 @@ function renderMappingTrial(trial) {
     optionsWrap.appendChild(btn);
   });
   trialContainer.appendChild(optionsWrap);
-}
-
-function renderExtinctionTrial(trial) {
-  const start = Date.now();
-  trialContainer.innerHTML = "";
-  const text = document.createElement("div");
-  text.className = "trial-text";
-  text.textContent = trial.text;
-  trialContainer.appendChild(text);
-
-  const modeHint = document.createElement("p");
-  modeHint.className = "label";
-  modeHint.textContent =
-    "If the sentence uses the correct name and pronouns for your person, press Correct. Otherwise press Incorrect.";
-  trialContainer.appendChild(modeHint);
-
-  const buttons = document.createElement("div");
-  buttons.className = "options";
-
-  const okBtn = document.createElement("button");
-  okBtn.className = "option";
-  okBtn.textContent = "Correct";
-  okBtn.addEventListener("click", () =>
-    handleAnswer(trial.isCorrect, nextTrial, "extinction", start, {
-      mode: trial.mode,
-      expected: trial.isCorrect,
-      patternId: trial.patternId,
-      sentence: trial.text
-    }, { onRetry: renderTrial })
-  );
-
-  const wrongBtn = document.createElement("button");
-  wrongBtn.className = "option";
-  wrongBtn.textContent = "Incorrect";
-  wrongBtn.addEventListener("click", () =>
-    handleAnswer(!trial.isCorrect, nextTrial, "extinction", start, {
-      mode: trial.mode,
-      expected: trial.isCorrect,
-      patternId: trial.patternId,
-      sentence: trial.text
-    }, { onRetry: renderTrial })
-  );
-
-  buttons.appendChild(okBtn);
-  buttons.appendChild(wrongBtn);
-  trialContainer.appendChild(buttons);
 }
 
 function renderDualTrial(trial) {
@@ -1671,21 +1547,27 @@ function renderEditingTrial(trial) {
   const instructions = document.createElement("p");
   instructions.className = "label";
   instructions.textContent =
-    "Click the wrong word, choose the right pronoun, and tweak verbs like is/are or has/have so everything agrees.";
+    "If it already looks right, tap Looks good. Otherwise, click the wrong word, swap the pronoun, and tweak verbs like is/are or has/have so everything agrees.";
   trialContainer.appendChild(instructions);
 
   const tokens = trial.text.split(" ");
   const tokenWrap = document.createElement("div");
   tokenWrap.className = "token-list";
 
+  const looksGoodBtn = document.createElement("button");
+  looksGoodBtn.type = "button";
+  looksGoodBtn.className = "ghost";
+  looksGoodBtn.textContent = "Looks good!";
+
   const continueBtn = document.createElement("button");
+  continueBtn.type = "button";
   continueBtn.className = "primary";
   continueBtn.textContent = "Continue";
   continueBtn.disabled = true;
   continueBtn.style.marginTop = "12px";
   const editingActions = document.createElement("div");
   editingActions.className = "editing-actions";
-  editingActions.append(continueBtn);
+  editingActions.append(looksGoodBtn, continueBtn);
 
   const corrections = new Map();
   const requiredIndices = new Set();
@@ -1696,6 +1578,7 @@ function renderEditingTrial(trial) {
     : trial.wrongWord
     ? [{ wrong: trial.wrongWord, correct: trial.correct, type: trial.wrongType }]
     : [];
+  const needsCorrection = trial.needsCorrection ?? Boolean(wrongEntries.length);
   let currentSubjectGrammar =
     trial.grammar || inferGrammarFromPronoun(trial.correctSubject || appState.setup.pronouns.subject);
 
@@ -1730,14 +1613,17 @@ function renderEditingTrial(trial) {
 
   const pronounPool = collectPronounPool();
 
-  const updateReadyState = () => {
+  const correctionsSatisfied = () => {
     const required = [...requiredIndices];
-    const ready =
-      required.length > 0 &&
-      required.every((idx) => {
-        const entry = corrections.get(idx);
-        return entry && entry.valid;
-      });
+    if (!required.length) return true;
+    return required.every((idx) => {
+      const entry = corrections.get(idx);
+      return entry && entry.valid;
+    });
+  };
+
+  const updateReadyState = () => {
+    const ready = correctionsSatisfied();
     continueBtn.disabled = !ready;
     return ready;
   };
@@ -1875,14 +1761,23 @@ function renderEditingTrial(trial) {
   trialContainer.appendChild(tokenWrap);
   trialContainer.appendChild(editingActions);
 
+  const buildMeta = (action) => ({
+    wrongType: trial.wrongType,
+    patternId: trial.patternId,
+    sentence: trial.text,
+    needsCorrection,
+    action,
+    finalSentence: currentTokens.join(" ")
+  });
+
   continueBtn.addEventListener("click", () => {
-    const ready = updateReadyState();
-    if (!ready) return;
-    handleAnswer(true, nextTrial, "editing", start, {
-      wrongType: trial.wrongType,
-      patternId: trial.patternId,
-      sentence: trial.text
-    });
+    if (!correctionsSatisfied()) return;
+    handleAnswer(true, nextTrial, "editing", start, buildMeta("edited"));
+  });
+
+  looksGoodBtn.addEventListener("click", () => {
+    const correct = correctionsSatisfied();
+    handleAnswer(correct, nextTrial, "editing", start, buildMeta("looks_good"));
   });
 
   refreshVerbRequirements();
@@ -1899,9 +1794,6 @@ function renderTrial() {
   switch (trial.type) {
     case "mapping":
       renderMappingTrial(trial);
-      break;
-    case "extinction":
-      renderExtinctionTrial(trial);
       break;
     case "dual":
       renderDualTrial(trial);
@@ -2329,7 +2221,6 @@ function showSummary() {
   renderSavedSummary(previousSummary);
   const modes = [
     { key: "mapping", label: "Quick Mapping" },
-    { key: "extinction", label: "Extinction" },
     { key: "dual", label: "Dual Task" },
     { key: "editing", label: "Sentence Editing" }
   ];
@@ -2462,9 +2353,6 @@ function showSummary() {
     ...summarizeLatencyByGroup(appState.results.mapping, (entry) => entry.role, (key, count) =>
       `Quick Mapping • ${roleLabel(key)} (${count} trials)`
     ),
-    ...summarizeLatencyByGroup(appState.results.extinction, (entry) => entry.mode, (key, count) =>
-      `Extinction • ${roleLabel(key)} (${count} trials)`
-    ),
     ...summarizeLatencyByGroup(appState.results.dual, (entry) => entry.task, (key, count) =>
       `Dual task • ${roleLabel(key)} (${count} trials)`
     ),
@@ -2524,10 +2412,9 @@ function resetApp() {
   appState.dualTimers.block = null;
   appState.trials = [];
   appState.currentTrialIndex = 0;
-  appState.results = { mapping: [], extinction: [], dual: [], editing: [] };
+  appState.results = { mapping: [], dual: [], editing: [] };
   appState.streaks = {
     mapping: { current: 0, best: 0 },
-    extinction: { current: 0, best: 0 },
     dual: { current: 0, best: 0 },
     editing: { current: 0, best: 0 }
   };
@@ -2580,7 +2467,6 @@ if (setupForm) {
     parseSetup(data);
     const selectedModes = {
       mapping: data.get("testStyleMapping") !== null,
-      extinction: data.get("testStyleExtinction") !== null,
       dual: data.get("testStyleDual") !== null,
       editing: data.get("testStyleEditing") !== null
     };
@@ -2649,7 +2535,6 @@ if (typeof module !== "undefined" && module.exports) {
     inferGrammarFromPronoun,
     resolveGrammar,
     generateMappingTrials,
-    generateExtinctionTrials,
     generateEditingTrials,
     appState
   };
