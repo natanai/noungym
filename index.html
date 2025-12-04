@@ -48,7 +48,7 @@
 
               <div class="form-group">
                 <label for="targetName">Name</label>
-                <input id="targetName" name="targetName" type="text" placeholder="Alex" required />
+                <input id="targetName" class="input-hero" name="targetName" type="text" placeholder="Alex" required />
               </div>
 
               <div class="form-group">
@@ -68,9 +68,18 @@
               </fieldset>
 
               <fieldset class="form-group">
-                <legend>Grammar Usage</legend>
-                <label class="radio"><input type="radio" name="verbGrammar" value="plural" checked />Plural verbs</label>
-                <label class="radio"><input type="radio" name="verbGrammar" value="singular" />Singular verbs</label>
+                <legend>Verb agreement</legend>
+                <p class="helper">Automatically matches your pronoun module; switch if you need a different verb form.</p>
+                <div class="pill-toggle" role="radiogroup">
+                  <label class="pill-option">
+                    <input type="radio" name="verbGrammar" value="plural" checked />
+                    <span>Plural verbs</span>
+                  </label>
+                  <label class="pill-option">
+                    <input type="radio" name="verbGrammar" value="singular" />
+                    <span>Singular verbs</span>
+                  </label>
+                </div>
               </fieldset>
             </div>
 
@@ -86,7 +95,7 @@
               </div>
               <div class="form-group">
                 <label for="deadname">Deadname (optional, used in traps)</label>
-                <input id="deadname" name="deadname" type="text" placeholder="former name" />
+                <input id="deadname" class="input-hero" name="deadname" type="text" placeholder="former name" />
                 <p class="helper">Leave blank to skip name-based traps. When filled, traps focus on pronoun accuracy even if the old name appears.</p>
               </div>
 
