@@ -4,6 +4,7 @@ const {
   inferGrammarFromPronoun,
   resolveGrammar,
   generateMappingTrials,
+  generateEditingTrials,
   appState
 } = require("./main.js");
 const { BASE_SENTENCE_PATTERNS, buildSentenceFromPattern } = require("./sentences.js");
@@ -143,9 +144,42 @@ function testMappingOptions() {
   });
 }
 
+function testEditingVerbGrammarHint() {
+  appState.setup = {
+    ...appState.setup,
+    pronouns: pronounSets[0].pronouns,
+    verbGrammar: "plural",
+    extinctionPronounSets: []
+  };
+  const trials = generateEditingTrials(12);
+  const badgeTrial = trials.find((trial) => trial.text.includes("name was spelled"));
+  assert(badgeTrial, "Expected badge spelling trial to be generated");
+  assert(badgeTrial.grammar === "singular", "Badge spelling grammar should be singular");
+}
+
+function testDuplicateLeadCleanup() {
+  const pattern = {
+    id: "dup_lead",
+    template: "Hello, Hello, {subject} was ready.",
+    slots: [],
+    pronounRolesUsed: ["subject"],
+    modes: ["mapping"]
+  };
+
+  const sentence = buildSentenceFromPattern(pattern, pronounSets[2].pronouns, {
+    name: "Nat",
+    grammar: "singular"
+  });
+
+  assert(sentence.startsWith("Hello, " ) && !sentence.startsWith("Hello, Hello,"),
+    "Duplicate leading phrase should be collapsed");
+}
+
 function run() {
   testGrammarAcrossTemplates();
   testMappingOptions();
+  testEditingVerbGrammarHint();
+  testDuplicateLeadCleanup();
   console.log("All tests passed.");
 }
 

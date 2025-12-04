@@ -142,7 +142,8 @@ const BASE_SENTENCE_PATTERNS = [
     slots: ["context_admin"],
     pronounRolesUsed: ["possAdj"],
     modes: ["mapping", "extinction", "editing", "dual"],
-    difficulty: 1
+    difficulty: 1,
+    grammarHint: "singular"
   },
   {
     id: "self_promise_rest",
@@ -295,10 +296,18 @@ function fillSlots(template, slotKeys) {
   return result;
 }
 
+// Remove accidental duplicate leading phrases such as
+// "Before the meeting started, Before the meeting started, ..."
+function collapseDuplicateLead(text) {
+  if (!text) return text;
+  return text.replace(/^(.*?,)\s*\1/i, "$1");
+}
+
 // Build a sentence instance for a given base pattern and pronoun set
 function buildSentenceFromPattern(pattern, pronounSet, options = {}) {
   const { name, deadname, grammar, hint } = options;
   let text = fillSlots(pattern.template, pattern.slots);
+  text = collapseDuplicateLead(text);
 
   const basePronouns = pronounSet || {};
   const tokens = {

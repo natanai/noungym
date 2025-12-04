@@ -945,10 +945,15 @@ function generateEditingTrials(limitCount = 35) {
       continue;
     }
 
+    const resolvedGrammar =
+      pattern.grammarHint === "singular"
+        ? "singular"
+        : resolveGrammar(pronouns.subject, verbGrammar, "name");
+
     const baseSentence = buildSentence(pattern, pronouns, {
       name: targetName,
       deadname,
-      grammar: verbGrammar,
+      grammar: resolvedGrammar,
       hint: "name"
     });
 
@@ -978,7 +983,9 @@ function generateEditingTrials(limitCount = 35) {
       wrongWord: primary?.wrong,
       wrongWords: wrongEntries,
       options,
-      correctSubject: pronouns.subject
+      correctSubject: pronouns.subject,
+      grammar: resolvedGrammar,
+      patternId: pattern.id
     });
 
     idx += 1;
@@ -1502,9 +1509,8 @@ function renderEditingTrial(trial) {
     : trial.wrongWord
     ? [{ wrong: trial.wrongWord, correct: trial.correct, type: trial.wrongType }]
     : [];
-  let currentSubjectGrammar = inferGrammarFromPronoun(
-    trial.correctSubject || appState.setup.pronouns.subject
-  );
+  let currentSubjectGrammar =
+    trial.grammar || inferGrammarFromPronoun(trial.correctSubject || appState.setup.pronouns.subject);
 
   const verbOptions = {
     is: ["is", "are"],
