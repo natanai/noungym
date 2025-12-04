@@ -719,6 +719,12 @@ button.option:focus {
   transform: translateY(-1px);
 }
 
+.option-error {
+  animation: flashRed 0.8s ease;
+  border-color: rgba(248, 113, 113, 0.75);
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.15);
+}
+
 button.option:disabled {
   opacity: 0.4;
   cursor: not-allowed;
