@@ -501,6 +501,12 @@ button.option:focus {
   padding-top: 12px;
 }
 
+.dual-timer {
+  margin: 8px 0 4px;
+  color: var(--helper);
+  font-weight: 700;
+}
+
 .grid-two {
   display: grid;
   grid-template-columns: repeat(2, minmax(120px, 1fr));
