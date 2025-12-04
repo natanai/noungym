@@ -1403,9 +1403,23 @@ function renderDualTrial(trial) {
     const value = Number(numberValue.textContent) || 0;
     const isEven = value % 2 === 0;
     const correct = (choice === "even" && isEven) || (choice === "odd" && !isEven);
+    const activeBtn = choice === "even" ? evenBtn : oddBtn;
     flashFeedback(correct);
     recordResult("dual", correct, numberStart, { task: "number" });
-    if (!correct) return;
+    if (!correct) {
+      activeBtn.classList.remove("option-error");
+      // Force reflow so the animation can retrigger.
+      void activeBtn.offsetWidth;
+      activeBtn.classList.add("option-error");
+      activeBtn.blur();
+      stopTimer();
+      pronounLocked = true;
+      correctBtn.disabled = true;
+      wrongBtn.disabled = true;
+      handleNumber(Math.floor(Math.random() * 90) + 10);
+      fillSentence();
+      return;
+    }
     pauseStreams();
     pronounLocked = false;
     correctBtn.disabled = false;
@@ -1470,12 +1484,9 @@ function renderEditingTrial(trial) {
   continueBtn.textContent = "Continue";
   continueBtn.disabled = true;
   continueBtn.style.marginTop = "12px";
-  const completionBadge = document.createElement("span");
-  completionBadge.className = "completion-badge hidden";
-  completionBadge.textContent = "✓ All corrections made";
   const editingActions = document.createElement("div");
   editingActions.className = "editing-actions";
-  editingActions.append(completionBadge, continueBtn);
+  editingActions.append(continueBtn);
 
   const corrections = new Map();
   const requiredIndices = new Set();
@@ -1529,7 +1540,6 @@ function renderEditingTrial(trial) {
         return entry && entry.valid;
       });
     continueBtn.disabled = !ready;
-    completionBadge.classList.toggle("hidden", !ready);
     return ready;
   };
 
