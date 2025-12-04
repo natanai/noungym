@@ -228,7 +228,7 @@ const BASE_SENTENCE_PATTERNS = [
   {
     id: "family_thank_you",
     template:
-      "[[context_family]]when thanking the team, I said our {relation} {name} {be} grateful and asked them to address {object} with the right pronouns.",
+      "[[context_family]]when thanking the team, I said our {relation} {name} {be} grateful and asked everyone to address {object} with the right pronouns.",
     slots: ["context_family"],
     pronounRolesUsed: ["subject", "object"],
     modes: ["mapping", "extinction", "editing", "dual"],
