@@ -1037,10 +1037,13 @@ function renderDualTrial(trial) {
   trialContainer.appendChild(grid);
 
   let numberStart = Date.now();
-  let pronounStart = Date.now();
+  let pronounStart = null;
   let timerStart = null;
   let timerInterval = null;
   let pronounLocked = true;
+  let activeSentence = "";
+  let numberInterval = null;
+  let pronounInterval = null;
   const handleNumber = (value) => {
     numberStart = Date.now();
     numberValue.textContent = value;
@@ -1077,24 +1080,45 @@ function renderDualTrial(trial) {
   const { pronouns } = appState.setup;
   const trapSet = buildTrapPronounSet();
   const fillSentence = () => {
-    const tpl = pronounTemplates[Math.floor(Math.random() * pronounTemplates.length)];
-    const useCorrect = Math.random() > 0.4;
-    const set = useCorrect ? pronouns : trapSet;
-    const grammar = inferGrammarFromPronoun(set.subject) || appState.setup.verbGrammar;
-    const text = applyLanguageRules(tpl, { pronouns: set, grammar });
+    let text = "";
+    let attempts = 0;
+    do {
+      const tpl = pronounTemplates[Math.floor(Math.random() * pronounTemplates.length)];
+      const useCorrect = Math.random() > 0.4;
+      const set = useCorrect ? pronouns : trapSet;
+      const grammar = inferGrammarFromPronoun(set.subject) || appState.setup.verbGrammar;
+      text = applyLanguageRules(tpl, { pronouns: set, grammar });
+      sentence.dataset.correct = useCorrect ? "true" : "false";
+      attempts += 1;
+    } while (text === activeSentence && attempts < 6);
+    activeSentence = text;
     sentence.textContent = text;
-    sentence.dataset.correct = useCorrect ? "true" : "false";
-    pronounStart = Date.now();
   };
 
-  const numberInterval = setInterval(() => {
-    const value = Math.floor(Math.random() * 90) + 10;
-    handleNumber(value);
-  }, 2000);
+  const startNumberStream = () => {
+    if (numberInterval) clearInterval(numberInterval);
+    handleNumber(Math.floor(Math.random() * 90) + 10);
+    numberInterval = setInterval(() => {
+      const value = Math.floor(Math.random() * 90) + 10;
+      handleNumber(value);
+    }, 2000);
+  };
 
-  const pronounInterval = setInterval(fillSentence, 4000);
-  handleNumber(Math.floor(Math.random() * 90) + 10);
-  fillSentence();
+  const startPronounStream = () => {
+    if (pronounInterval) clearInterval(pronounInterval);
+    fillSentence();
+    pronounInterval = setInterval(fillSentence, 4000);
+  };
+
+  const pauseStreams = () => {
+    clearInterval(numberInterval);
+    clearInterval(pronounInterval);
+    numberInterval = null;
+    pronounInterval = null;
+  };
+
+  startNumberStream();
+  startPronounStream();
 
   const cleanup = () => {
     clearInterval(numberInterval);
@@ -1110,9 +1134,12 @@ function renderDualTrial(trial) {
     const correct = (choice === "even" && isEven) || (choice === "odd" && !isEven);
     flashFeedback(correct);
     recordResult("dual", correct, numberStart, { task: "number" });
+    if (!correct) return;
+    pauseStreams();
     pronounLocked = false;
     correctBtn.disabled = false;
     wrongBtn.disabled = false;
+    pronounStart = Date.now();
     startTimer();
   };
 
@@ -1125,6 +1152,8 @@ function renderDualTrial(trial) {
     correctBtn.disabled = true;
     wrongBtn.disabled = true;
     stopTimer();
+    startNumberStream();
+    startPronounStream();
   };
 
   oddBtn.addEventListener("click", () => handleNumberAnswer("odd"));
