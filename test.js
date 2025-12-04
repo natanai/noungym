@@ -105,6 +105,8 @@ function testGrammarAcrossTemplates() {
       ...appState.setup,
       targetName: "Nat",
       deadname: "Old Name",
+      relation: "child",
+      oldRelation: "old term",
       pronouns: set.pronouns,
       verbGrammar: resolveGrammar(set.pronouns.subject, selectedGrammar),
       extinctionPronounSets: []
