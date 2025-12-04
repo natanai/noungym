@@ -152,6 +152,22 @@ function testEditingVerbGrammarHint() {
   assert(badgeTrial.grammar === "singular", "Badge spelling grammar should be singular");
 }
 
+function testEditingMixIncludesCorrectSentences() {
+  appState.setup = {
+    ...appState.setup,
+    pronouns: pronounSets[0].pronouns,
+    verbGrammar: "auto",
+    extinctionPronounSets: []
+  };
+
+  const trials = generateEditingTrials(20);
+  const hasCorrections = trials.some((trial) => trial.needsCorrection !== false);
+  const hasAlreadyCorrect = trials.some((trial) => trial.needsCorrection === false);
+
+  assert(hasAlreadyCorrect, "Editing trials should sometimes be ready to approve.");
+  assert(hasCorrections, "Editing trials should still include sentences that need fixes.");
+}
+
 function testTheyOverridesStayPlural() {
   const theyPronouns = pronounSets[0].pronouns;
   const resolved = resolveGrammar(theyPronouns.subject, "singular");
@@ -253,6 +269,7 @@ function run() {
   testGrammarAcrossTemplates();
   testMappingOptions();
   testEditingVerbGrammarHint();
+  testEditingMixIncludesCorrectSentences();
   testTheyOverridesStayPlural();
   testConservativeModeReducesTheyDensity();
   testSingularHintForNonPronounSubjects();
