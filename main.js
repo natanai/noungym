@@ -1322,50 +1322,20 @@ function renderDualTrial(trial) {
 
   const { pronouns } = appState.setup;
   const trapSet = buildTrapPronounSet();
-  const cueSources = (appState.setup.extinctionPronounSets || []).filter((set) =>
-    Object.values(set || {}).some((v) => v && v.trim())
-  );
-  const cuePronouns = cueSources.flatMap((set) => Object.values(set || []));
-  if (appState.setup.deadname) cuePronouns.push(appState.setup.deadname);
-  if (appState.setup.oldRelation) cuePronouns.push(appState.setup.oldRelation);
-  if (appState.setup.relation) cuePronouns.push(appState.setup.relation);
-  if (trapSet) cuePronouns.push(...Object.values(trapSet));
-
-  const scheduleCue = () => {
-    clearCue();
-    const options = cuePronouns.filter(Boolean).map((v) => v.trim());
-    if (!options.length) return;
-    const time = Math.max(1200, 2500 + Math.random() * 1800);
-    cueTimeout = setTimeout(() => {
-      const choice = options[Math.floor(Math.random() * options.length)];
-      const promptTemplates = [
-        `Replace “${choice}” with {name}.`,
-        `Check pronouns: is it “${choice}” or {subject}?`,
-        `Say {name} instead of “${choice}.”`
-      ];
-      const tpl = promptTemplates[Math.floor(Math.random() * promptTemplates.length)];
-      cue.textContent = applyLanguageRules(tpl, { pronouns, grammar: appState.setup.verbGrammar });
-      cue.classList.remove("hidden");
-      cueTimeout = setTimeout(() => {
-        cue.classList.add("hidden");
-        scheduleCue();
-      }, 1600);
-    }, time);
-  };
+  const scheduleCue = () => {};
 
   const startTimer = () => {
     stopTimer();
     timerStart = Date.now();
     timerDisplay.classList.remove("hidden");
-    timerInterval = setInterval(() => {
-      const elapsedMs = Date.now() - timerStart;
-      const elapsedSeconds = Math.floor(elapsedMs / 1000);
-      const mins = String(Math.floor(elapsedSeconds / 60)).padStart(2, "0");
-      const secs = String(elapsedSeconds % 60).padStart(2, "0");
-      const millis = String(elapsedMs % 1000).padStart(3, "0");
-      timerDisplay.textContent = `Timer: ${mins}:${secs}.${millis}`;
-    }, 50);
-    scheduleCue();
+      timerInterval = setInterval(() => {
+        const elapsedMs = Date.now() - timerStart;
+        const elapsedSeconds = Math.floor(elapsedMs / 1000);
+        const mins = String(Math.floor(elapsedSeconds / 60)).padStart(2, "0");
+        const secs = String(elapsedSeconds % 60).padStart(2, "0");
+        const millis = String(elapsedMs % 1000).padStart(3, "0");
+        timerDisplay.textContent = `Timer: ${mins}:${secs}.${millis}`;
+      }, 50);
   };
 
   const pronounPatterns = getPatternsForModeAndRole("dual");
