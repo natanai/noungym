@@ -302,7 +302,20 @@ function fillSlots(template, slotKeys) {
 // "Before the meeting started, Before the meeting started, ..."
 function collapseDuplicateLead(text) {
   if (!text) return text;
-  return text.replace(/^(.*?,)\s*\1/i, "$1");
+  const deduped = text.replace(/^(.*?,)\s*\1/i, "$1");
+  if (deduped !== text) return deduped;
+
+  const leadMatch = deduped.match(/^([^,]+?,)\s*([^,]+?,)(.*)$/);
+  if (leadMatch) {
+    const [, firstClause, secondClause, rest] = leadMatch;
+    const isIntroLead = (clause) => /^(at|before|after|during|while|when|on|in|by)\b/i.test(clause.trim());
+
+    if (isIntroLead(firstClause) && isIntroLead(secondClause)) {
+      return `${secondClause.trim()} ${rest.trimStart()}`;
+    }
+  }
+
+  return deduped;
 }
 
 // Build a sentence instance for a given base pattern and pronoun set
