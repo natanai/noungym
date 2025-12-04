@@ -1555,25 +1555,49 @@ function renderEditingTrial(trial) {
   continueBtn.style.marginTop = "12px";
 
   const corrections = new Map();
-  let totalWrong = 0;
+  const requiredIndices = new Set();
+
+  const collectPronounPool = () => {
+    const fromSetup = Object.values(appState.setup.pronouns || {});
+    const fromExtinction = (appState.setup.extinctionPronounSets || [])
+      .flatMap((set) => Object.values(set || {}));
+    const fromTrial = [trial.correct, trial.wrong, ...(trial.options || [])];
+
+    return new Set(
+      [...fromSetup, ...fromExtinction, ...fromTrial]
+        .filter(Boolean)
+        .map((p) => p.toLowerCase())
+    );
+  };
+
+  const pronounPool = collectPronounPool();
 
   const updateReadyState = () => {
-    const ready = totalWrong > 0 && corrections.size === totalWrong && [...corrections.values()].every(Boolean);
+    const required = [...requiredIndices];
+    const ready =
+      required.length > 0 &&
+      required.every((idx) => {
+        const entry = corrections.get(idx);
+        return entry && entry.valid;
+      });
     continueBtn.disabled = !ready;
     return ready;
   };
 
   tokens.forEach((tok, idx) => {
     const span = document.createElement("span");
-    const cleaned = tok.replace(/[.,!?]/g, "");
-    const normalized = cleaned.toLowerCase();
+    const punctuationMatch = tok.match(/([.,!?]+)$/);
+    const suffix = punctuationMatch ? punctuationMatch[0] : "";
+    const baseToken = punctuationMatch ? tok.slice(0, -suffix.length) : tok;
+    const normalized = baseToken.toLowerCase();
     const isWrong = normalized === trial.wrongWord.toLowerCase();
     const isVerbSwitchable = normalized === "is" || normalized === "are";
-    if (isWrong) totalWrong += 1;
+    const isPronounToken = pronounPool.has(normalized);
+    if (isWrong) requiredIndices.add(idx);
     span.className = "token";
-    span.textContent = cleaned;
+    span.textContent = tok;
     span.addEventListener("click", () => {
-      if (!isWrong && !isVerbSwitchable) return;
+      if (!isWrong && !isVerbSwitchable && !isPronounToken) return;
       if (span.dataset.replaced === "true") return;
       const select = document.createElement("select");
       select.className = "dropdown";
@@ -1581,25 +1605,42 @@ function renderEditingTrial(trial) {
         "aria-label",
         isVerbSwitchable ? "Choose replacement verb" : "Choose replacement pronoun"
       );
-      const options = isVerbSwitchable ? ["is", "are"] : trial.options;
+      const baseOptions = isVerbSwitchable ? ["is", "are"] : [...(trial.options || [])];
+      if (!isVerbSwitchable) {
+        baseOptions.push(baseToken);
+      }
+      const options = [...new Set(baseOptions.filter(Boolean))];
       options.forEach((o) => {
         const opt = document.createElement("option");
         opt.value = o;
         opt.textContent = o;
         select.appendChild(opt);
       });
-      select.value = isVerbSwitchable ? normalized : trial.wrongWord;
-      if (isWrong) {
-        select.addEventListener("change", () => {
-          const isCorrect = select.value === trial.correct;
-          corrections.set(idx, isCorrect);
+      const startingValue = isVerbSwitchable ? normalized : baseToken;
+      select.value = options.includes(startingValue) ? startingValue : options[0];
+
+      const markState = (value) => {
+        const isCorrect = isWrong ? value === trial.correct : true;
+        corrections.set(idx, { required: requiredIndices.has(idx), valid: isCorrect });
+        if (isWrong) {
           select.classList.toggle("incorrect", !isCorrect);
           select.classList.toggle("correct", isCorrect);
-          if (updateReadyState()) continueBtn.focus();
-        });
-        corrections.set(idx, false);
+        }
+        if (updateReadyState()) continueBtn.focus();
+      };
+
+      markState(select.value);
+      select.addEventListener("change", () => markState(select.value));
+
+      const wrapper = document.createElement("span");
+      wrapper.className = "token";
+      wrapper.appendChild(select);
+      if (suffix) {
+        const punct = document.createElement("span");
+        punct.textContent = suffix;
+        wrapper.appendChild(punct);
       }
-      span.replaceWith(select);
+      span.replaceWith(wrapper);
       span.dataset.replaced = "true";
       select.focus();
     });
