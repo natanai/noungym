@@ -254,8 +254,15 @@ h1 {
 
 .panel-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: 1fr;
   gap: 16px;
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .panel-grid {
+    grid-template-columns: minmax(380px, 1.1fr) minmax(320px, 0.9fr);
+  }
 }
 
 .panel {
@@ -266,6 +273,20 @@ h1 {
   box-shadow: inset 0 0 0 2px rgba(255, 224, 126, 0.35), inset 0 8px 0 rgba(255, 224, 126, 0.25);
 }
 
+.panel--primary {
+  grid-column: 1 / -1;
+  border-width: 4px;
+  background: linear-gradient(180deg, #fff8f4 0%, rgba(255, 224, 126, 0.3) 100%);
+  box-shadow: 0 14px 0 rgba(61, 35, 40, 0.12), inset 0 0 0 2px rgba(52, 172, 186, 0.18);
+}
+
+.panel--secondary {
+  background: rgba(255, 247, 239, 0.85);
+  border-style: dashed;
+  border-color: rgba(61, 35, 40, 0.4);
+  box-shadow: inset 0 0 0 2px rgba(171, 86, 117, 0.18);
+}
+
 .panel h3 {
   margin: 0 0 4px;
   color: var(--text);
@@ -274,6 +295,18 @@ h1 {
 
 .panel-header {
   margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.optional-pill {
+  background: rgba(52, 172, 186, 0.12);
+  border-color: rgba(61, 35, 40, 0.25);
+  color: var(--accent-strong);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .form-group {
@@ -442,6 +475,15 @@ legend {
   height: 18px;
   accent-color: var(--accent);
   flex-shrink: 0;
+}
+
+.test-style input[disabled] {
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.test-style input[disabled] + .test-style-copy .helper {
+  color: #5f6d7a;
 }
 
 .test-style-copy {
