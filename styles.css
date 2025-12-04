@@ -988,6 +988,23 @@ button.option:disabled {
   border-color: rgba(248, 113, 113, 0.45);
 }
 
+.feedback-actions {
+  position: absolute;
+  top: 68px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 231, 214, 0.95);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(61, 42, 47, 0.16);
+}
+
+.feedback-actions .primary {
+  min-width: 120px;
+}
+
 .feedback-icon {
   display: inline-flex;
   align-items: center;

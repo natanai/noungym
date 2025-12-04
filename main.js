@@ -1109,8 +1109,10 @@ function recordResult(type, correct, startTime, meta = {}) {
   appState.results[type].push({ correct, rt: elapsed, ...meta });
 }
 
-function handleAnswer(correct, onAdvance, type, startTime, meta = {}) {
-  const lingering = trialContainer.querySelectorAll(".feedback-overlay, .feedback-banner");
+function handleAnswer(correct, onAdvance, type, startTime, meta = {}, options = {}) {
+  const lingering = trialContainer.querySelectorAll(
+    ".feedback-overlay, .feedback-banner, .feedback-actions"
+  );
   lingering.forEach((node) => node.remove());
   flashFeedback(correct);
   const banner = document.createElement("div");
@@ -1122,19 +1124,53 @@ function handleAnswer(correct, onAdvance, type, startTime, meta = {}) {
     <span>${correct ? "Correct — keep going" : "Incorrect — pause & review"}</span>
   `;
   trialContainer.appendChild(banner);
+
+  let actions = null;
+  const cleanup = () => {
+    banner.remove();
+    if (actions) actions.remove();
+  };
+
   if (correct) {
     recordResult(type, true, startTime, meta);
     setTimeout(() => {
-      banner.remove();
+      cleanup();
       onAdvance();
     }, 900);
     return;
   }
+
+  const { onRetry } = options;
   recordResult(type, false, startTime, meta);
-  setTimeout(() => {
-    banner.remove();
+
+  actions = document.createElement("div");
+  actions.className = "feedback-actions";
+
+  const retryButton = document.createElement("button");
+  retryButton.type = "button";
+  retryButton.className = "ghost";
+  retryButton.textContent = "Retry question";
+  retryButton.addEventListener("click", () => {
+    cleanup();
+    if (typeof onRetry === "function") {
+      onRetry();
+    } else {
+      renderTrial();
+    }
+  });
+
+  const continueButton = document.createElement("button");
+  continueButton.type = "button";
+  continueButton.className = "primary";
+  continueButton.textContent = "Continue";
+  continueButton.addEventListener("click", () => {
+    cleanup();
     onAdvance();
-  }, 1500);
+  });
+
+  if (typeof onRetry === "function") actions.appendChild(retryButton);
+  actions.appendChild(continueButton);
+  trialContainer.appendChild(actions);
 }
 
 function renderMappingTrial(trial) {
@@ -1152,7 +1188,9 @@ function renderMappingTrial(trial) {
     btn.className = "option";
     btn.textContent = opt;
     btn.addEventListener("click", () =>
-      handleAnswer(opt === trial.correct, nextTrial, "mapping", start, { role: trial.role })
+      handleAnswer(opt === trial.correct, nextTrial, "mapping", start, { role: trial.role }, {
+        onRetry: renderTrial
+      })
     );
     optionsWrap.appendChild(btn);
   });
@@ -1183,7 +1221,7 @@ function renderExtinctionTrial(trial) {
     handleAnswer(trial.isCorrect, nextTrial, "extinction", start, {
       mode: trial.mode,
       expected: trial.isCorrect
-    })
+    }, { onRetry: renderTrial })
   );
 
   const wrongBtn = document.createElement("button");
@@ -1193,7 +1231,7 @@ function renderExtinctionTrial(trial) {
     handleAnswer(!trial.isCorrect, nextTrial, "extinction", start, {
       mode: trial.mode,
       expected: trial.isCorrect
-    })
+    }, { onRetry: renderTrial })
   );
 
   buttons.appendChild(okBtn);
